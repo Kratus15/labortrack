@@ -17,7 +17,7 @@ public class Company {
     @Column(unique = true, nullable = false, columnDefinition = "citext")
     private String email;
 
-    @Column(nullable = true, length = 30)
+    @Column(length = 30)
     private String phone;
 
     @Column(nullable = false, length = 64)
