@@ -1,5 +1,6 @@
 package com.labortrack.labortrack_backend.user.entity;
 
+import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.user.enums.UserRole;
 import jakarta.persistence.*;
 
@@ -14,8 +15,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "company_id", nullable = false)
-    private Long companyId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "company_id",  nullable = false)
+    private Company company;
 
     @Column(nullable = false, unique = true, columnDefinition="citext")
     private String email;

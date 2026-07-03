@@ -1,8 +1,11 @@
 package com.labortrack.labortrack_backend.company.entity;
 
+import com.labortrack.labortrack_backend.user.entity.User;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name="companies")
@@ -32,6 +35,8 @@ public class Company {
     @Column(name="updated_at", nullable = false)
     private OffsetDateTime  updatedAt;
 
+    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
+    private List<User> users = new ArrayList<>();
 
     // HELPER METHODS
     @PrePersist
