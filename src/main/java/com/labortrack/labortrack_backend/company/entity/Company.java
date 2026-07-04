@@ -2,6 +2,7 @@ package com.labortrack.labortrack_backend.company.entity;
 
 import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.user.entity.User;
+import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -43,6 +44,10 @@ public class Company {
     // One company can have many employees. Employee(s) belongs to one company.
     @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
     private List<Employee> employees = new ArrayList<>();
+
+    // One company can have many workSessions. A workSession belongs to one company.
+    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
+    private List<WorkSession> workSessions = new ArrayList<>();
 
     // HELPER METHODS
     @PrePersist

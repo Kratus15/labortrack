@@ -1,5 +1,7 @@
 package com.labortrack.labortrack_backend.worksession.entity;
 
+import com.labortrack.labortrack_backend.company.entity.Company;
+import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.worksession.enums.WorkSessionStatus;
 import jakarta.persistence.*;
 
@@ -14,10 +16,15 @@ public class WorkSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "company_id", nullable = false)
-    private Long companyId;
-    @Column(name = "employee_id", nullable = false)
-    private Long employeeId;
+    // A workSession belongs to one company. One company can have many workSessions.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+
+    // A workSession belongs to one employee. An employee can have many workSessions.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     @Column(name = "clock_in_time", nullable = false)
     private OffsetDateTime clockInTime;
