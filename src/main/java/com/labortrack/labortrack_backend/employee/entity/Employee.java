@@ -1,6 +1,8 @@
 package com.labortrack.labortrack_backend.employee.entity;
 
+import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.employee.enums.EmployeeStatus;
+import com.labortrack.labortrack_backend.user.entity.User;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,11 +17,15 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "company_id", nullable = false)
-    private Long companyId;
+    // Employee(s) belongs to one company. One company can have many employees
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
-    @Column(name = "user_id", nullable = false, unique = true)
-    private Long userId;
+    // Employee is linked to one user. User login is only linked to one employee.
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;

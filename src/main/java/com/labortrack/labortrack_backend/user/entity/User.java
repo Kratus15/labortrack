@@ -1,6 +1,7 @@
 package com.labortrack.labortrack_backend.user.entity;
 
 import com.labortrack.labortrack_backend.company.entity.Company;
+import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.user.enums.UserRole;
 import jakarta.persistence.*;
 
@@ -15,9 +16,14 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // user belong to one company. A company can have many users.
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "company_id",  nullable = false)
     private Company company;
+
+    // User login is linked only to one employee. Employee is linked to one user.
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
+    private Employee employee;
 
     @Column(nullable = false, unique = true, columnDefinition="citext")
     private String email;
