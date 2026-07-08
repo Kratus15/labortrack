@@ -60,4 +60,76 @@ public class WorkSession {
     protected void onUpdate() {
         this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+    }
+
+    public OffsetDateTime getClockInTime() {
+        return clockInTime;
+    }
+
+    public void setClockInTime(OffsetDateTime clockInTime) {
+        this.clockInTime = clockInTime;
+    }
+
+    public OffsetDateTime getClockOutTime() {
+        return clockOutTime;
+    }
+
+    public void setClockOutTime(OffsetDateTime clockOutTime) {
+        this.clockOutTime = clockOutTime;
+    }
+
+    public WorkSessionStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(WorkSessionStatus status) {
+        this.status = status;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }
