@@ -196,6 +196,9 @@ public class RepositoryDataJpaTest {
         assertThat(companyInactiveEmployees).isEmpty();
     }
 
+    /**
+     * Meant to test custom queries from WorkSessionRepository.
+     */
     @Test
     void canFindWorkSessionsByEmployeeCompanyAndStatus() {
         // company
