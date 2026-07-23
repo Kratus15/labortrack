@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Service
 public class WorkSessionService {
@@ -25,6 +26,22 @@ public class WorkSessionService {
             EmployeeRepository employeeRepository) {
         this.workSessionRepository = workSessionRepository;
         this.employeeRepository = employeeRepository;
+    }
+
+    /**
+     * Retrieves an employee's work-session history ordered by
+     * clock-in time, newest first. Verifies that the employee exists
+     * before retrieving the sessions.
+     */
+    @Transactional(readOnly = true)
+    public List<WorkSession> getWorkSessionsForEmployee(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with id=" + employeeId + " not found."
+                ));
+
+        return workSessionRepository
+                .findByEmployeeOrderByClockInTimeDesc(employee);
     }
 
     /**

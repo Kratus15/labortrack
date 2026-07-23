@@ -16,6 +16,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,14 +54,21 @@ class EmployeeServiceTest {
                 employeeEmail,
                 "Yonelvyn",
                 "Morel",
-                new BigDecimal("25.00")
+                "973-555-0100",
+                new BigDecimal("25.00"),
+                LocalDate.of(2026, 7, 21),
+                "https://example.com/images/yonelvyn-morel.jpg"
         );
 
         assertThat(employeeCreated.getId()).isNotNull();
         assertThat(employeeCreated.getCompany().getId()).isEqualTo(testCompany.getId());
         assertThat(employeeCreated.getFirstName()).isEqualTo("Yonelvyn");
         assertThat(employeeCreated.getLastName()).isEqualTo("Morel");
+        assertThat(employeeCreated.getPhone()).isEqualTo("973-555-0100");
         assertThat(employeeCreated.getHourlyRate()).isEqualByComparingTo(new BigDecimal("25.00"));
+        assertThat(employeeCreated.getHireDate()).isEqualTo(LocalDate.of(2026, 7, 21));
+        assertThat(employeeCreated.getProfileImageUrl())
+                .isEqualTo("https://example.com/images/yonelvyn-morel.jpg");
         assertThat(employeeCreated.getStatus()).isEqualTo(EmployeeStatus.ACTIVE);
         assertThat(employeeCreated.getUser()).isNotNull();
 
@@ -93,12 +101,15 @@ class EmployeeServiceTest {
         // will use same email to create both employees
         String employeeEmail = "duplicate-employee-" + UUID.randomUUID() + "@labortrack.test";
 
-        employeeService.createEmployee(
+        Employee employeeCreated = employeeService.createEmployee(
                 company.getId(),
                 employeeEmail,
-                "Yonelvyn",
-                "Morel",
-                new BigDecimal("25.00")
+                "Pedro",
+                "Garcia",
+                "380-555-0020",
+                new BigDecimal("25.00"),
+                LocalDate.of(2026, 7, 21),
+                "https://example.com/images/pedro-garcia.jpg"
         );
 
         assertThatThrownBy(() -> employeeService.createEmployee(
@@ -106,7 +117,10 @@ class EmployeeServiceTest {
                 employeeEmail,
                 "Nohelvyn",
                 "Garcia",
-                new BigDecimal("30.00")
+                "379-555-0010",
+                new BigDecimal("30.00"),
+                LocalDate.of(2026, 7, 21),
+                "https://example.com/images/nohelvyn-garcia.jpg"
         )).isInstanceOf(DuplicateResourceException.class);
     }
 
@@ -125,7 +139,10 @@ class EmployeeServiceTest {
                 employeeEmail,
                 "Yonelvyn",
                 "Morel",
-                new BigDecimal("25.00")
+                "400-555-0202",
+                new BigDecimal("25.00"),
+                LocalDate.of(2026, 7, 21),
+                "https://example.com/images/yonelvyn-morel.jpg"
         )).isInstanceOf(ResourceNotFoundException.class);
     }
 

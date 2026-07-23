@@ -4,14 +4,13 @@ import com.labortrack.labortrack_backend.common.exception.DuplicateResourceExcep
 import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.user.entity.User;
 import com.labortrack.labortrack_backend.user.enums.UserRole;
-import com.labortrack.labortrack_backend.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,7 +25,7 @@ class CompanyServiceTest {
     CompanyService companyService;
 
     @Autowired
-    UserRepository userRepository;
+    PasswordEncoder passwordEncoder;
 
     /**
      * Test the companyService.registerCompanyWithAdminUser() method
@@ -39,10 +38,13 @@ class CompanyServiceTest {
         String email = "admin-" + UUID.randomUUID() + "@labortrack.test";
 
         // register a company using service
-        Company testCompany = companyService.registerCompanyWithAdminUser(
+        CompanyRegistrationResult result = companyService.registerCompanyWithAdminUser(
                 "ABC Construction",
                 email,
                 "test-password");
+
+        Company testCompany = result.company();
+        User testAdminUser = result.adminUser();
 
         // confirm company was actually register
         assertThat(testCompany.getId()).isNotNull();
@@ -50,16 +52,12 @@ class CompanyServiceTest {
         assertThat(testCompany.getEmail()).isEqualTo(email);
         assertThat(testCompany.getTimezone()).isEqualTo("America/New_York");
 
-        // confirm user was also register as well
-        Optional<User> adminUserOptional = userRepository.findByEmail(email);
-        assertThat(adminUserOptional).isPresent();
-
-        User adminUser = adminUserOptional.get();
-
-        assertThat(adminUser.getId()).isNotNull();
-        assertThat(adminUser.getCompany().getId()).isEqualTo(testCompany.getId());
-        assertThat(adminUser.getEmail()).isEqualTo(email);
-        assertThat(adminUser.getRole()).isEqualTo(UserRole.ADMIN);
+        assertThat(testAdminUser.getId()).isNotNull();
+        assertThat(testAdminUser.getCompany().getId()).isEqualTo(testCompany.getId());
+        assertThat(testAdminUser.getPasswordHash()).isNotEqualTo("test-password");
+        assertThat(passwordEncoder.matches("test-password", testAdminUser.getPasswordHash())).isTrue();
+        assertThat(testAdminUser.getEmail()).isEqualTo(email);
+        assertThat(testAdminUser.getRole()).isEqualTo(UserRole.ADMIN);
 
     }
 

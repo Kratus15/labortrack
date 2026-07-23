@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Service
 public class EmployeeService {
@@ -47,7 +48,10 @@ public class EmployeeService {
             String userEmployeeEmail,
             String firstName,
             String lastName,
-            BigDecimal hourlyRate
+            String phone,
+            BigDecimal hourlyRate,
+            LocalDate hireDate,
+            String profileImageUrl
             ) {
 
         validateName(firstName, "First name");
@@ -67,6 +71,7 @@ public class EmployeeService {
         User employeeUser = new User();
         employeeUser.setEmail(normalizedEmail);
         employeeUser.setPasswordHash(tempPasswordGenerated);
+        employeeUser.setEnabled(true);
         employeeUser.setMustChangePassword(true);
         employeeUser.setCompany(company);
         employeeUser.setRole(UserRole.EMPLOYEE);
@@ -77,7 +82,18 @@ public class EmployeeService {
         Employee employee = new Employee();
         employee.setFirstName(firstName.trim());
         employee.setLastName(lastName.trim());
+        employee.setPhone(
+                phone == null || phone.isBlank()
+                        ? null
+                        : phone.trim()
+        ); // make phone null if blank or null otherwise trim
         employee.setHourlyRate(hourlyRate);
+        employee.setHireDate(hireDate);
+        employee.setProfileImageUrl(
+                profileImageUrl == null || profileImageUrl.isBlank()
+                        ? null
+                        : profileImageUrl.trim()
+        ); // make profImg null if blank or null otherwise trim
         employee.setCompany(company); // connect employee to company
         employee.setUser(savedEmployeeUser); // connect employee to user
         employee.setStatus(EmployeeStatus.ACTIVE);
