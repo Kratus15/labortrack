@@ -6,7 +6,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * Convert normal plain password into encrypted more secure ones, making it
+ * Convert normal plain password into hashed more secure ones, making it
  * less likely to be hack or be vulnerable.
  */
 @Configuration

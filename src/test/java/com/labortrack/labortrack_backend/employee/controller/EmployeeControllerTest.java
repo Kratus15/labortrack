@@ -3,6 +3,8 @@ package com.labortrack.labortrack_backend.employee.controller;
 import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.company.repository.CompanyRepository;
 import com.labortrack.labortrack_backend.employee.dto.request.EmployeeCreationRequest;
+import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetails;
+import com.labortrack.labortrack_backend.user.enums.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -59,6 +62,8 @@ class EmployeeControllerTest {
         );
 
         mockMvc.perform(post("/api/companies/{companyId}/employees", testCompany.getId())
+                // request passes through authentication and authorization before DTO validation. Produce expected 400 status code
+                        .with(user(createAdminPrincipal(testCompany.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -102,6 +107,8 @@ class EmployeeControllerTest {
         );
 
         mockMvc.perform(post("/api/companies/{companyId}/employees", testCompany.getId())
+                        // request passes through authentication and authorization before DTO validation.
+                        .with(user(createAdminPrincipal(testCompany.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -127,18 +134,19 @@ class EmployeeControllerTest {
     }
 
     /**
-     * This method checks what happens when an employee is created using a company
-     * that does not exist. The request dto data is valid but the company id does not
-     * exist (not valid). Therefore, the API must return a 404 status code NOT FOUND
-     * with the custom error response DTO format.
-     * @throws Exception
+     * Verifies that an authenticated admin cannot create an employee for
+     * another company by changing the company ID in the URL. The request
+     * must return 403 Forbidden before reaching the employee creation service.
      */
     @Test
-    void createEmployeeReturnsNotFoundWhenCompanyDoesNotExist () throws Exception {
-        // no company
-        String employeeEmail = "missing-company-" + UUID.randomUUID() + "@labortrack.test";
+    void createEmployeeReturnsForbiddenWhenAdminUsesAnotherCompanyId()
+            throws Exception {
 
-        // valid dto request
+        Company authenticatedAdminCompany = createCompanyTest();
+        Long requestedCompanyId = 999999L;
+
+        String employeeEmail = "wrong-company-" + UUID.randomUUID() + "@labortrack.test";
+
         EmployeeCreationRequest request = new EmployeeCreationRequest(
                 "Yonelvyn",
                 "Morel",
@@ -149,23 +157,28 @@ class EmployeeControllerTest {
                 employeeEmail
         );
 
-        // must receive 404 not found
         mockMvc.perform(post(
                         "/api/companies/{companyId}/employees",
-                        999999L
+                        requestedCompanyId
                 )
+                        // request passes through authentication and authorization before DTO validation.
+                        .with(user(createAdminPrincipal(
+                                authenticatedAdminCompany.getId()
+                        )))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
                 ))
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message")
-                        .value("Company with id=999999 not found."))
-                .andExpect(jsonPath("$.path")
-                        .value("/api/companies/999999/employees"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(
+                        "You do not have permission to access this resource."
+                ))
+                .andExpect(jsonPath("$.path").value(
+                        "/api/companies/999999/employees"
+                ))
                 .andExpect(jsonPath("$.validationErrors").isEmpty());
     }
 
@@ -181,5 +194,17 @@ class EmployeeControllerTest {
         company.setTimezone("America/New_York");
 
         return companyRepository.save(company);
+    }
+    private LaborTrackUserDetails createAdminPrincipal(Long companyId) {
+        return new LaborTrackUserDetails(
+                1000L,
+                companyId,
+                null,
+                "admin-" + companyId + "@labortrack.test",
+                "{noop}unused",
+                UserRole.ADMIN,
+                true,
+                false
+        );
     }
 }

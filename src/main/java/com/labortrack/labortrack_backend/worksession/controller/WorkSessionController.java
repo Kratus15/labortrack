@@ -1,5 +1,7 @@
 package com.labortrack.labortrack_backend.worksession.controller;
 
+import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetails;
+import com.labortrack.labortrack_backend.user.enums.UserRole;
 import com.labortrack.labortrack_backend.worksession.dto.response.ClockInResponse;
 import com.labortrack.labortrack_backend.worksession.dto.response.ClockOutResponse;
 import com.labortrack.labortrack_backend.worksession.dto.response.WorkSessionResponse;
@@ -7,9 +9,12 @@ import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import com.labortrack.labortrack_backend.worksession.service.WorkSessionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/employees")
@@ -32,10 +37,18 @@ public class WorkSessionController {
      */
     @PostMapping("/{employeeId}/clock-in")
     public ResponseEntity<ClockInResponse> clockIn(
-            @PathVariable Long employeeId
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal LaborTrackUserDetails authenticatedUser
             ) {
-        // clock-in
-        WorkSession openWorkSession = workSessionService.clockIn(employeeId);
+
+        // check that param that was pass in match the actual authenticated user
+        validateEmployeeOwnership(authenticatedUser, employeeId);
+
+        // use the authenticated employee object id instead of trusting the url value
+        Long authenticatedEmployeeId = authenticatedUser.getEmployeeId();
+
+        // clock-in using authenticated object employeeId
+        WorkSession openWorkSession = workSessionService.clockIn(authenticatedEmployeeId);
 
         // generate clock-in response
         ClockInResponse response = new ClockInResponse(
@@ -43,7 +56,7 @@ public class WorkSessionController {
                 openWorkSession.getEmployee().getId(),
                 openWorkSession.getClockInTime(),
                 openWorkSession.getStatus(),
-                "Employee with id: " + employeeId + ", Clocked in successfully."
+                "Employee with id: " + authenticatedEmployeeId + ", Clocked in successfully."
         );
 
         return ResponseEntity
@@ -59,10 +72,18 @@ public class WorkSessionController {
      */
     @PostMapping("/{employeeId}/clock-out")
     public ResponseEntity<ClockOutResponse> clockOut(
-            @PathVariable Long employeeId
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal LaborTrackUserDetails authenticatedUser
     ) {
+
+        // check that param that was pass in match the actual authenticated user
+        validateEmployeeOwnership(authenticatedUser, employeeId);
+
+        // use the authenticated employee object id instead of trusting the url value
+        Long authenticatedEmployeeId = authenticatedUser.getEmployeeId();
+
         // clock-out
-        WorkSession closedWorkSession = workSessionService.clockOut(employeeId);
+        WorkSession closedWorkSession = workSessionService.clockOut(authenticatedEmployeeId);
 
         // generate clock-out response
         ClockOutResponse response = new ClockOutResponse(
@@ -72,7 +93,7 @@ public class WorkSessionController {
                 closedWorkSession.getClockOutTime(),
                 closedWorkSession.getStatus(),
                 calculateWorkedDurationToMinutes(closedWorkSession),
-                "Employee with id: " + employeeId + ", Clocked out successfully."
+                "Employee with id: " + authenticatedEmployeeId + ", Clocked out successfully."
         );
 
         return ResponseEntity.ok(response);
@@ -86,10 +107,26 @@ public class WorkSessionController {
      */
     @GetMapping("/{employeeId}/work-sessions")
     public ResponseEntity<List<WorkSessionResponse>> getWorkSessions(
-            @PathVariable Long employeeId
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal LaborTrackUserDetails authenticatedUser
     ) {
+        // employee can only request for their own work-session history.
+        if (authenticatedUser.getRole() == UserRole.EMPLOYEE) {
+            validateEmployeeOwnership(authenticatedUser, employeeId);
+        }
+
+        // instead of using the param employeeId, use the authenticated user employeeId (SAFETY)
+        // an admin can select an employee from the url, but the service must verifies that employee
+        // belongs to the admin's company
+        Long authorizedEmployeeId =
+                authenticatedUser.getRole() == UserRole.EMPLOYEE
+                ? authenticatedUser.getEmployeeId()
+                        : employeeId;
+
         List<WorkSessionResponse> response = workSessionService
-                .getWorkSessionsForEmployee(employeeId)
+                .getWorkSessionsForEmployee(
+                        authorizedEmployeeId,
+                        authenticatedUser.getCompanyId())
                 .stream()
                 .map(this::toWorkSessionResponse)
                 .toList();
@@ -117,6 +154,18 @@ public class WorkSessionController {
                 : workSessionService
                 .calculateWorkedDuration(workSession)
                 .toMinutes();
+    }
+    private void validateEmployeeOwnership(
+            LaborTrackUserDetails authenticatedUser,
+            Long requestedEmployeeId) {
+        if (!Objects.equals(
+                authenticatedUser.getEmployeeId(),
+                requestedEmployeeId
+        )) {
+            throw new AccessDeniedException(
+                    "You cannot manage another employee work sessions."
+            );
+        }
     }
 
 }

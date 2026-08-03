@@ -1,12 +1,16 @@
 package com.labortrack.labortrack_backend.employee.controller;
 
 import com.labortrack.labortrack_backend.employee.dto.request.EmployeeCreationRequest;
-import com.labortrack.labortrack_backend.employee.dto.response.EmployeeResponse;
+import com.labortrack.labortrack_backend.employee.dto.response.EmployeeCreationResponse;
+import com.labortrack.labortrack_backend.employee.service.EmployeeCreationResult;
 import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.employee.service.EmployeeService;
+import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetails;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,13 +35,23 @@ public class EmployeeController {
      * temp password that would have to be changed at first login.
      */
     @PostMapping("/{companyId}/employees")
-    public ResponseEntity<EmployeeResponse> createEmployee(
+    public ResponseEntity<EmployeeCreationResponse> createEmployee(
             @PathVariable Long companyId,
+           @AuthenticationPrincipal LaborTrackUserDetails authenticatedUser,
            @Valid @RequestBody EmployeeCreationRequest request) {
 
-        // create employee through service layer
-        Employee employee = employeeService.createEmployee(
-                companyId,
+        // company provided in the url can be created, don't trust it
+        // confirm it matches authenticated admin's company.
+        // this confirm url is valid
+        if (!authenticatedUser.getCompanyId().equals(companyId)) {
+            throw new AccessDeniedException(
+                    "You cannot create employees for another company"
+            );
+        }
+
+        // instead of using the url company pass, use the authenticate user
+        EmployeeCreationResult result = employeeService.createEmployee(
+                authenticatedUser.getCompanyId(),
                 request.email(),
                 request.firstName(),
                 request.lastName(),
@@ -47,8 +61,10 @@ public class EmployeeController {
                 request.profileImageUrl()
         );
 
+        Employee employee = result.employee();
+
         // generate the dto response
-        EmployeeResponse response = new EmployeeResponse(
+        EmployeeCreationResponse  response = new EmployeeCreationResponse(
                 employee.getId(),
                 employee.getCompany().getId(),
                 employee.getUser().getId(),
@@ -60,7 +76,8 @@ public class EmployeeController {
                 employee.getProfileImageUrl(),
                 employee.getStatus(),
                 employee.getHireDate(),
-                employee.getCreatedAt()
+                employee.getCreatedAt(),
+                result.temporaryPassword()
         );
 
         return ResponseEntity

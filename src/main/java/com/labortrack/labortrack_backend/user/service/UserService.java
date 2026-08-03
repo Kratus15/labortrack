@@ -2,20 +2,35 @@ package com.labortrack.labortrack_backend.user.service;
 
 import com.labortrack.labortrack_backend.common.exception.DuplicateResourceException;
 import com.labortrack.labortrack_backend.user.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
 
 @Service
 public class UserService {
 
-    private final UserRepository userRepository;
+    private static final String UPPERCASE = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String LOWERCASE = "abcdefghijkmnopqrstuvwxyz";
+    private static final String DIGITS = "23456789";
+    private static final String SPECIAL_CHARACTERS = "!@#$%";
+    private static final String ALL_CHARACTERS = UPPERCASE + LOWERCASE + DIGITS + SPECIAL_CHARACTERS;
+    private static final int TEMPORARY_PASSWORD_LENGTH = 16;
 
-    public UserService(UserRepository userRepository) {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom;
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.secureRandom = new SecureRandom();
     }
 
     /**
-     * Ensure email is available
+     * Ensure email is available and it is not already register.
      */
     @Transactional(readOnly  = true)
     public void ensureEmailIsAvailable(String email) {
@@ -36,12 +51,56 @@ public class UserService {
     }
 
     /**
-     * Meant to generate an initial temporary random passwords for
-     * new employee users. Will be given to employees to login,
-     * then they must swap it
+     * This method simply generates a secure temp password and hashes
+     * it for storage. The raw password must be shown to the admin only
+     * once. The encoded password should be stored in database.
      */
-    public String generateTemporaryPasswordHashedPlaceholder() {
-        return "TEMP_PASSWORD_HASH_GENERATOR_NOT_IMPLEMENTED_YET";
+    public GeneratedTemporaryPassword generateTemporaryPassword() {
+        char[] passwordCharacters = new char[TEMPORARY_PASSWORD_LENGTH];
+
+        // first make sure you have a character from each gropu
+        passwordCharacters[0] = randomCharacter(UPPERCASE);
+        passwordCharacters[1] = randomCharacter(LOWERCASE);
+        passwordCharacters[2] = randomCharacter(DIGITS);
+        passwordCharacters[3] = randomCharacter(SPECIAL_CHARACTERS);
+
+        // fill the remaining positions with random characters
+        for (int index = 4;
+             index < TEMPORARY_PASSWORD_LENGTH;
+             index++) {
+
+            passwordCharacters[index] = randomCharacter(ALL_CHARACTERS);
+        }
+
+        // shuffle password
+        shuffle(passwordCharacters);
+
+        String rawPassword = new String(passwordCharacters);
+        String passwordHash = passwordEncoder.encode(rawPassword);
+
+        // return object with raw and encoded password
+        return new GeneratedTemporaryPassword(
+                rawPassword,
+                passwordHash
+        );
+    }
+
+    // HELPER METHODS
+    private char randomCharacter(String allowedCharacters) {
+        int index = secureRandom.nextInt(allowedCharacters.length());
+        return allowedCharacters.charAt(index);
+    }
+    private void shuffle(char[] characters) {
+        for (int index = characters.length-1;
+        index > 0;
+        index --) {
+
+            int randomIndex = secureRandom.nextInt(index + 1);
+
+            char temporaryCharacter = characters[index];
+            characters[index] = characters[randomIndex];
+            characters[randomIndex] = temporaryCharacter;
+        }
     }
 
 }

@@ -8,12 +8,14 @@ import com.labortrack.labortrack_backend.employee.repository.EmployeeRepository;
 import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import com.labortrack.labortrack_backend.worksession.enums.WorkSessionStatus;
 import com.labortrack.labortrack_backend.worksession.repository.WorkSessionRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class WorkSessionService {
@@ -34,12 +36,25 @@ public class WorkSessionService {
      * before retrieving the sessions.
      */
     @Transactional(readOnly = true)
-    public List<WorkSession> getWorkSessionsForEmployee(Long employeeId) {
+    public List<WorkSession> getWorkSessionsForEmployee(
+            Long employeeId,
+            Long authenticatedCompanyId) {
+
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee with id=" + employeeId + " not found."
                 ));
 
+        // prevent an authenticated user from accessing an employee
+        // that belongs to another company
+        if (!Objects.equals(
+                employee.getCompany().getId(),
+                authenticatedCompanyId
+        )) {
+            throw new AccessDeniedException(
+                    "You cannot access employees from another company."
+            );
+        }
         return workSessionRepository
                 .findByEmployeeOrderByClockInTimeDesc(employee);
     }

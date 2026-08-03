@@ -12,6 +12,7 @@ import com.labortrack.labortrack_backend.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,9 @@ class EmployeeServiceTest {
     @Autowired
     CompanyRepository companyRepository;
 
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
     /**
      * Create Employee (action) test. Creates an employee,
      * using a test company and a random email, then we check
@@ -49,7 +53,7 @@ class EmployeeServiceTest {
 
         String employeeEmail = "employee-" + UUID.randomUUID() + "@labortrack.test";
 
-        Employee employeeCreated = employeeService.createEmployee(
+        EmployeeCreationResult result = employeeService.createEmployee(
                 testCompany.getId(),
                 employeeEmail,
                 "Yonelvyn",
@@ -59,6 +63,8 @@ class EmployeeServiceTest {
                 LocalDate.of(2026, 7, 21),
                 "https://example.com/images/yonelvyn-morel.jpg"
         );
+
+        Employee employeeCreated = result.employee();
 
         assertThat(employeeCreated.getId()).isNotNull();
         assertThat(employeeCreated.getCompany().getId()).isEqualTo(testCompany.getId());
@@ -83,6 +89,24 @@ class EmployeeServiceTest {
         assertThat(employeeUser.getRole()).isEqualTo(UserRole.EMPLOYEE);
         assertThat(employeeUser.isMustChangePassword()).isTrue();
 
+        // verify temp password flow works
+        assertThat(employeeUser.isEnabled()).isTrue();
+
+        assertThat(result.temporaryPassword())
+                .isNotBlank()
+                .hasSize(16);
+
+        assertThat(employeeUser.getPasswordHash())
+                .isNotBlank()
+                .startsWith("{bcrypt}")
+                .isNotEqualTo(result.temporaryPassword());
+
+        assertThat(
+                passwordEncoder.matches(
+                        result.temporaryPassword(),
+                        employeeUser.getPasswordHash()
+                )
+        ).isTrue();
     }
 
     /**
@@ -101,7 +125,7 @@ class EmployeeServiceTest {
         // will use same email to create both employees
         String employeeEmail = "duplicate-employee-" + UUID.randomUUID() + "@labortrack.test";
 
-        Employee employeeCreated = employeeService.createEmployee(
+        EmployeeCreationResult  result = employeeService.createEmployee(
                 company.getId(),
                 employeeEmail,
                 "Pedro",
@@ -111,6 +135,8 @@ class EmployeeServiceTest {
                 LocalDate.of(2026, 7, 21),
                 "https://example.com/images/pedro-garcia.jpg"
         );
+
+        Employee employee = result.employee();
 
         assertThatThrownBy(() -> employeeService.createEmployee(
                 company.getId(),

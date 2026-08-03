@@ -4,6 +4,8 @@ import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.company.repository.CompanyRepository;
 import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.employee.service.EmployeeService;
+import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetails;
+import com.labortrack.labortrack_backend.user.enums.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -48,10 +51,15 @@ class WorkSessionControllerTest {
         // create test employee
         Employee testEmployee = createTestEmployee();
 
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
+
         mockMvc.perform(post(
                         "/api/employees/{employeeId}/clock-in",
                         testEmployee.getId()
-                ))
+                )
+                // send authenticated user with the requests
+                .with(user(authenticatedEmployee)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -78,11 +86,18 @@ class WorkSessionControllerTest {
         // create test employee
         Employee testEmployee = createTestEmployee();
 
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
+
+        // send authenticated user with every request
         // clock-in employee, 201 (created) expected, open a work-session
-        mockMvc.perform(post("/api/employees/{employeeId}/clock-in",  testEmployee.getId()))
+        mockMvc.perform(post("/api/employees/{employeeId}/clock-in",  testEmployee.getId())
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isCreated());
+
         // clock-in employee again, but this time you expect an error because you can't clock-in while having an open work-session
-        mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId()))
+        mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId())
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -108,12 +123,18 @@ class WorkSessionControllerTest {
         // create test employee
         Employee testEmployee = createTestEmployee();
 
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
+
+        // send authenticated user with every request
         // clock-in the employee first to create open work-session
-        mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId()))
+        mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId())
+                        .with(user(authenticatedEmployee)))
                         .andExpect(status().isCreated());
 
         // then clock-out and expect a closed work-session
-        mockMvc.perform(post("/api/employees/{employeeId}/clock-out", testEmployee.getId()))
+        mockMvc.perform(post("/api/employees/{employeeId}/clock-out", testEmployee.getId())
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -142,8 +163,13 @@ class WorkSessionControllerTest {
         // create test employee
         Employee testEmployee = createTestEmployee();
 
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
+
+        // send authenticated user with every request
         // The employee does not have open work-session. Try to clock out and expect bad request back.
-        mockMvc.perform(post("/api/employees/{employeeId}/clock-out", testEmployee.getId()))
+        mockMvc.perform(post("/api/employees/{employeeId}/clock-out", testEmployee.getId())
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -172,12 +198,18 @@ class WorkSessionControllerTest {
         // create test employee
         Employee testEmployee = createTestEmployee();
 
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
+
+        // send authenticated user with every request
         // create one open workSession
-        mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId()))
+        mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId())
+                .with(user(authenticatedEmployee)))
                 .andExpect(status().isCreated());
 
         // retrieve employee work-sessions and expect the open work-session above first.
-        mockMvc.perform(get("/api/employees/{employeeId}/work-sessions", testEmployee.getId()))
+        mockMvc.perform(get("/api/employees/{employeeId}/work-sessions", testEmployee.getId())
+                .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -204,25 +236,32 @@ class WorkSessionControllerTest {
     void getWorkSessionsReturnsClosedWorkSessionHistory() throws Exception {
         Employee testEmployee = createTestEmployee();
 
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
+
+        // send authenticated user with every request
         // Create an open work session
         mockMvc.perform(post(
                         "/api/employees/{employeeId}/clock-in",
                         testEmployee.getId()
-                ))
+                )
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isCreated());
 
         // Close the work session
         mockMvc.perform(post(
                         "/api/employees/{employeeId}/clock-out",
                         testEmployee.getId()
-                ))
+                )
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk());
 
         // Retrieve the closed work session from the employee history.
         mockMvc.perform(get(
                         "/api/employees/{employeeId}/work-sessions",
                         testEmployee.getId()
-                ))
+                )
+                        .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -246,10 +285,17 @@ class WorkSessionControllerTest {
      */
     @Test
     void getWorkSessionsReturnsNotFoundWhenEmployeeDoesNotExist() throws Exception {
+        Company testCompany = createTestCompany();
+
+        // create an authenticated employee
+        LaborTrackUserDetails authenticatedAdmin = createAdminPrincipal(testCompany.getId());
+
+        // send authenticated user with every request
         mockMvc.perform(get(
                         "/api/employees/{employeeId}/work-sessions",
                         999999L
-                ))
+                )
+                        .with(user(authenticatedAdmin)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
@@ -265,15 +311,11 @@ class WorkSessionControllerTest {
 
     // HELPER METHODS
     private Employee createTestEmployee() {
-        Company company = new Company();
-        company.setName("Work Session Controller Test");
-        company.setTimezone("America/New_York");
-        company.setEmail("worksession-company-" + UUID.randomUUID() + "@labortrack.test");
-        Company savedCompany = companyRepository.save(company);
+        Company testCompany = createTestCompany();
 
         String employeeEmail = "worksession-employee-" + UUID.randomUUID() + "@labortrack.test";
         return employeeService.createEmployee(
-                savedCompany.getId(),
+                testCompany.getId(),
                 employeeEmail,
                 "Yonelvyn",
                 "Morel",
@@ -281,6 +323,37 @@ class WorkSessionControllerTest {
                 new BigDecimal("27.5"),
                 LocalDate.of(2026, 7, 21),
                 "https://example.com/images/yonelvyn-morel.jpg"
+        ).employee();
+    }
+    private Company createTestCompany() {
+        Company company = new Company();
+        company.setName("Work Session Controller Test");
+        company.setTimezone("America/New_York");
+        company.setEmail("worksession-company-" + UUID.randomUUID() + "@labortrack.test");
+        return companyRepository.save(company);
+    }
+    private LaborTrackUserDetails createEmployeePrincipal(Employee employee) {
+        return new LaborTrackUserDetails(
+                employee.getUser().getId(),
+                employee.getCompany().getId(),
+                employee.getId(),
+                employee.getUser().getEmail(),
+                "{noop}unused",
+                UserRole.EMPLOYEE,
+                true,
+                false
+        );
+    }
+    private LaborTrackUserDetails createAdminPrincipal(Long companyId) {
+        return new LaborTrackUserDetails(
+                2000L,
+                companyId,
+                null,
+                "admin-" + companyId + "@labortrack.test",
+                "{noop}unused",
+                UserRole.ADMIN,
+                true,
+                false
         );
     }
 }

@@ -9,6 +9,7 @@ import com.labortrack.labortrack_backend.employee.repository.EmployeeRepository;
 import com.labortrack.labortrack_backend.user.entity.User;
 import com.labortrack.labortrack_backend.user.enums.UserRole;
 import com.labortrack.labortrack_backend.user.repository.UserRepository;
+import com.labortrack.labortrack_backend.user.service.GeneratedTemporaryPassword;
 import com.labortrack.labortrack_backend.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,10 +41,11 @@ public class EmployeeService {
      * This operation must only be done by admin user that
      * has a company. The employee user must have unique email,
      * and will have a temp initial random hashed password,
-     * needed to change it once login.
+     * needed to change it once log in. Response with object
+     * that holds employee created and raw password.
      */
     @Transactional
-    public Employee createEmployee(
+    public EmployeeCreationResult createEmployee(
             Long companyId,
             String userEmployeeEmail,
             String firstName,
@@ -64,13 +66,14 @@ public class EmployeeService {
 
         String normalizedEmail = userService.normalizeEmail(userEmployeeEmail);
         userService.ensureEmailIsAvailable(normalizedEmail);
-        String tempPasswordGenerated = userService.generateTemporaryPasswordHashedPlaceholder();
+        GeneratedTemporaryPassword temporaryPassword =
+                userService.generateTemporaryPassword();
 
 
         // register employee user
         User employeeUser = new User();
         employeeUser.setEmail(normalizedEmail);
-        employeeUser.setPasswordHash(tempPasswordGenerated);
+        employeeUser.setPasswordHash(temporaryPassword.passwordHash());
         employeeUser.setEnabled(true);
         employeeUser.setMustChangePassword(true);
         employeeUser.setCompany(company);
@@ -98,7 +101,14 @@ public class EmployeeService {
         employee.setUser(savedEmployeeUser); // connect employee to user
         employee.setStatus(EmployeeStatus.ACTIVE);
 
-        return employeeRepository.save(employee);
+        savedEmployeeUser.setEmployee(employee);
+
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        return new EmployeeCreationResult(
+                savedEmployee,
+                temporaryPassword.rawPassword()
+        );
     }
 
     // HELPER METHODS
