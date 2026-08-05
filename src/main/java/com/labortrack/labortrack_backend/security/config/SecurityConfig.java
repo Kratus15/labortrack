@@ -146,6 +146,16 @@ public class SecurityConfig {
                                         "/api/employees/*/work-sessions"
                                 ).hasAnyRole("ADMIN", "EMPLOYEE")
 
+                                // only ADMIN users can access/read admin dashboard endpoints
+                                .requestMatchers(
+                                        "/api/admin/**"
+                                ).hasRole("ADMIN")
+
+                                // only EMPLOYEE users can access/read employee self dashboard endpoints.
+                                .requestMatchers(
+                                        "/api/employee/**"
+                                ).hasRole("EMPLOYEE")
+
                                 // any other request required authentication first before accessing (PROTECTED)
                                 .anyRequest().authenticated()
 
