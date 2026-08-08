@@ -19,6 +19,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
@@ -39,6 +42,39 @@ import java.util.List;
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
+
+    /**
+     * This Bean allows the local React frontend to
+     * communicate with the Spring Boot API during
+     * development. Both React and Spring Boots shares
+     * the same host "localhost" but different ports
+     * [5173, 8080]. Therefore, Cors allowed Spring
+     * Boots backend to received API calls from
+     * frontend or the URL specify.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(
+                List.of("http://localhost:5173")
+        );
+
+        configuration.setAllowedMethods(
+                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        );
+
+        configuration.setAllowedHeaders(
+                List.of("Authorization", "Content-Type", "Accept")
+        );
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/api/**", configuration);
+
+        return source;
+    }
 
     /**
      * This bean creates the object used to authenticate when user login.
@@ -82,16 +118,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            CorsConfigurationSource corsConfigurationSource,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             PasswordChangeRequiredFilter passwordChangeRequiredFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler)
             throws Exception{
 
-        http.
+        http
+                // allowed the Bean to allow our fronted's request calls
+                .cors(cors ->
+                    cors.configurationSource(corsConfigurationSource)
+                )
+
                 // JWT authentication is STATELESS. Http session must not remember
                 // user information
-                sessionManagement(
+                .sessionManagement(
                         session ->
                                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
