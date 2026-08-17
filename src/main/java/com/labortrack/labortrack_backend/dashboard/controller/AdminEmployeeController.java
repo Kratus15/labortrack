@@ -40,7 +40,7 @@ public class AdminEmployeeController {
     }
 
     /**
-     * This method-endpoint returns informaiton for one employee belonging
+     * This method-endpoint returns information for one employee belonging
      * to the authenticated given company. The service checks both employeeId
      * and companyId to enforce company isolation. Both company and employee
      * IDs must match to return.

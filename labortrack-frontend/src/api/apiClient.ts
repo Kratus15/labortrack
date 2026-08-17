@@ -29,6 +29,16 @@ type ApiRequestOptions = RequestInit & {
     token?: string
 }
 
+/**
+ * This function sends the request to the backend.
+ * It takes a path endpoint and object that
+ * can hold header fields like JWT, etc. Return
+ * back the response from the request or any error
+ * that the request encounter internally. This function
+ * is meant to be reusable, so you don't have to provided
+ * configuration each time. Simply put the path and the
+ * authenticated user if private endpoint.
+ */
 export async function apiRequest<T>(
     path: string,
     options: ApiRequestOptions = {},
@@ -80,13 +90,15 @@ export async function apiRequest<T>(
     if (!response.ok) {
         // handle backend errors
         const message =
-            typeof responseBody === 'object' &&
-            responseBody !== null &&
-            'message' in responseBody
-                ? String(responseBody.message)
-                : response.status === 403
-                    ? 'You do not have permission to perform this action.'
-                    : `Request failed with status ${response.status}`
+            response.status >= 500
+                ? 'Something went wrong on the server. Please try again.'
+                : typeof responseBody === 'object' &&
+                responseBody !== null &&
+                'message' in responseBody
+                    ? String(responseBody.message)
+                    : response.status === 403
+                        ? 'You do not have permission to perform this action.'
+                        : `Request failed with status ${response.status}`
 
 
         throw new ApiError(response.status, message, responseBody)

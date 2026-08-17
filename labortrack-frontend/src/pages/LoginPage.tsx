@@ -2,7 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { ApiError } from '../api/apiClient'
 import { login } from '../auth/AuthApi.ts'
-import { Navigate, useNavigate } from 'react-router'
+import {
+    Link,
+    Navigate,
+    useLocation,
+    useNavigate
+} from 'react-router'
 
 /**
  * This function displays the login form on the
@@ -24,6 +29,11 @@ function LoginPage() {
     const { session, signIn } = useAuth()
 
     const navigate = useNavigate()
+
+    const location = useLocation()
+
+    const registrationSuccess =
+        location.state?.registrationSuccess as string | undefined
 
     // already authenticated users should not see the login page
     if (session) {
@@ -91,41 +101,109 @@ function LoginPage() {
 
     // Display the login page
     return (
-        <main>
-            <h1>LaborTrack</h1>
-            <h2>Sign in</h2>
+        <main className="auth-page">
 
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label htmlFor="email">Email</label>
-                    <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        autoComplete="email"
-                        required
-                    />
+            <div className="auth-card">
+
+                <div className="auth-brand">
+                    <h1>LaborTrack</h1>
+                    <p>Workforce time tracking made simple.</p>
                 </div>
 
-                <div>
-                    <label htmlFor="password">Password</label>
-                    <input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        autoComplete="current-password"
-                        required
-                    />
+                <div className="auth-heading">
+                    <h2>Sign in</h2>
+                    <p>Enter your account information to continue.</p>
                 </div>
 
-                {errorMessage && <p role="alert">{errorMessage}</p>}
+                {/* SPECIAL MESSAGE WHEN NEW COMPANY REGISTERS */}
+                {registrationSuccess && (
+                    <p className="auth-success">
+                        {registrationSuccess}
+                    </p>
+                )}
 
-                <button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Signing in...' : 'Sign in'}
-                </button>
-            </form>
+                {/* LOGIN FORM*/}
+                <form
+                    className="auth-form"
+                    onSubmit={handleSubmit}
+                >
+
+                    <div className="form-group">
+                        <label
+                            className="form-label"
+                            htmlFor="email"
+                        >
+                            Email
+                        </label>
+
+                        <input
+                            className="form-input"
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(event) =>
+                                setEmail(event.target.value)
+                            }
+                            autoComplete="email"
+                            placeholder="you@example.com"
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label
+                            className="form-label"
+                            htmlFor="password"
+                        >
+                            Password
+                        </label>
+
+                        <input
+                            className="form-input"
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(event) =>
+                                setPassword(event.target.value)
+                            }
+                            autoComplete="current-password"
+                            placeholder="Enter your password"
+                            required
+                        />
+                    </div>
+
+                    {errorMessage && (
+                        <p
+                            className="auth-error"
+                            role="alert"
+                        >
+                            {errorMessage}
+                        </p>
+                    )}
+
+                    <button
+                        className="auth-submit-button"
+                        type="submit"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting
+                            ? 'Signing in...'
+                            : 'Sign in'}
+                    </button>
+
+                </form>
+
+                {/* Redirect to /register endpoint (new users) */}
+                <div className="auth-footer">
+                    <span>New to LaborTrack?</span>
+
+                    <Link to="/register">
+                        Create your company
+                    </Link>
+                </div>
+
+            </div>
+
         </main>
     )
 }

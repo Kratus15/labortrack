@@ -5,8 +5,11 @@ import { changePassword } from '../auth/AuthApi'
 import { useAuth } from '../auth/AuthContext'
 
 /**
- * Allows an authenticated user to replace
- * their temporary/current password with a new one.
+ * This function displays the change-password page form.
+ * Allows an authenticated user to replace their
+ * temporary/current password with a new one. This will
+ * be enforced if it is an employee-user account, and it is
+ * first login.
  */
 function ChangePasswordPage() {
     // get the current user's session. Get signIn to update user's session state.
@@ -80,43 +83,103 @@ function ChangePasswordPage() {
     }
 
     return (
-        <main>
-            <h1>Change Password</h1>
-            <p>You must change your password before continuing.</p>
+        <main className="auth-page">
 
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label htmlFor="currentPassword">Current password</label>
-                    <input
-                        id="currentPassword"
-                        type="password"
-                        value={currentPassword}
-                        onChange={(event) => setCurrentPassword(event.target.value)}
-                        autoComplete="current-password"
-                        required
-                    />
+            <div className="auth-card">
+
+                <div className="auth-brand">
+                    <h1>LaborTrack</h1>
+                    <p>Secure your account.</p>
                 </div>
 
-                <div>
-                    <label htmlFor="newPassword">New password</label>
-                    <input
-                        id="newPassword"
-                        type="password"
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        autoComplete="new-password"
-                        minLength={12}
-                        maxLength={64}
-                        required
-                    />
+                <div className="auth-heading">
+                    <h2>Change Password</h2>
+
+                    <p>
+                        {currentSession.mustChangePassword
+                            ? 'You must change your temporary password before continuing.'
+                            : 'Choose a new password for your LaborTrack account.'}
+                    </p>
                 </div>
 
-                {errorMessage && <p role="alert">{errorMessage}</p>}
+                <form
+                    className="auth-form"
+                    onSubmit={handleSubmit}
+                >
 
-                <button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Changing password...' : 'Change password'}
-                </button>
-            </form>
+                    <div className="form-group">
+                        <label
+                            className="form-label"
+                            htmlFor="currentPassword"
+                        >
+                            Current password
+                        </label>
+
+                        <input
+                            className="form-input"
+                            id="currentPassword"
+                            type="password"
+                            value={currentPassword}
+                            onChange={(event) =>
+                                setCurrentPassword(event.target.value)
+                            }
+                            autoComplete="current-password"
+                            placeholder="Enter your current password"
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label
+                            className="form-label"
+                            htmlFor="newPassword"
+                        >
+                            New password
+                        </label>
+
+                        <input
+                            className="form-input"
+                            id="newPassword"
+                            type="password"
+                            value={newPassword}
+                            onChange={(event) =>
+                                setNewPassword(event.target.value)
+                            }
+                            autoComplete="new-password"
+                            placeholder="Enter your new password"
+                            minLength={12}
+                            maxLength={64}
+                            required
+                        />
+                    </div>
+
+                    <p className="password-hint">
+                        Password must be between 12 and 64 characters.
+                    </p>
+
+                    {errorMessage && (
+                        <p
+                            className="auth-error"
+                            role="alert"
+                        >
+                            {errorMessage}
+                        </p>
+                    )}
+
+                    <button
+                        className="auth-submit-button"
+                        type="submit"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting
+                            ? 'Changing password...'
+                            : 'Change password'}
+                    </button>
+
+                </form>
+
+            </div>
+
         </main>
     )
 }
