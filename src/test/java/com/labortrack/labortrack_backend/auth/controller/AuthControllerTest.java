@@ -1085,12 +1085,12 @@ class AuthControllerTest {
     }
 
     /**
-     * This method-test verifies that changing a password fails when the pass in current
-     * password does not match the stored password hash therefore password change should
-     * not happen and expect unauthorized status.
+     * This test verifies that changing a password fails when the provided
+     * current password does not match the stored password hash.
+     * The request should return bad request and the password should not change.
      */
     @Test
-    void changePasswordReturnsUnauthorizedWhenCurrentPasswordIsIncorrect() throws Exception {
+    void changePasswordReturnsBadRequestWhenCurrentPasswordIsIncorrect() throws Exception {
 
         String adminEmail = "wrong-current-password-" + UUID.randomUUID() + "@labortrack.test";
         String correctPassword = "CorrectPassword123$";
@@ -1143,7 +1143,7 @@ class AuthControllerTest {
                 "DifferentNewPassword123$"
         );
 
-        // send that request through API, expect unauthorized status back because
+        // send that request through API, expect bad request status back because
         // current password submitted does not match the original stored hash password
         mockMvc.perform(
                 post("/api/auth/change-password")
@@ -1156,12 +1156,15 @@ class AuthControllerTest {
                                 changePasswordRequest
                         ))
         )
-                .andExpect(status().isUnauthorized())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
                 ))
-                .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value(
+                        "Current password is incorrect."
+                ))
                 .andExpect(jsonPath("$.path").value(
                         "/api/auth/change-password"
                 ));

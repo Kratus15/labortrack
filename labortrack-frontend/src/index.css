@@ -408,6 +408,19 @@ body {
   background-color: #f3f4f6;
 }
 
+.account-change-password {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  color: #1f2937;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.account-change-password:hover {
+  background-color: #f3f4f6;
+}
+
 /* EMPLOYEE PROFILE IMAGE AND NAME */
 .employee-heading {
   display: flex;

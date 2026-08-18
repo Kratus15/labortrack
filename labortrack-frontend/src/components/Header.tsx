@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 
 type HeaderProps = {
     email: string
@@ -51,6 +52,7 @@ export function Header({ email, role, onLogout }: HeaderProps) {
                     </svg>
                 </button>
 
+                {/* DROP DOWN */}
                 {isAccountMenuOpen && (
                     <div className="account-dropdown">
 
@@ -58,6 +60,15 @@ export function Header({ email, role, onLogout }: HeaderProps) {
                             <strong>{email}</strong>
                             <span>{role}</span>
                         </div>
+
+                        {/* CHANGE PASSWORD ROUTE BUTTON */}
+                        <Link
+                            to="/change-password"
+                            className="account-change-password"
+                            onClick={() => setIsAccountMenuOpen(false)}
+                        >
+                            Change Password
+                        </Link>
 
                         <button
                             type="button"
