@@ -49,10 +49,297 @@ public class DashboardControllerTest {
     EmployeeRepository employeeRepository;
 
     /**
+     * This method-test verifies that an invalid employee status
+     * request parameter returns a clean 400 API error response
+     * instead of exposing Spring/internal conversion details.
+     */
+    @Test
+    void adminEmployeeListReturnsBadRequestForInvalidStatus() throws Exception {
+
+        String adminEmail =
+                "invalid-status-admin-"
+                        + UUID.randomUUID()
+                        + "@labortrack.test";
+
+        String adminPassword = "InvalidStatusAdmin123$";
+
+        // create (company + adminUser registration request)
+        CompanyRegistrationRequest registrationRequest =
+                new CompanyRegistrationRequest(
+                        "Invalid Status Test Company",
+                        adminEmail,
+                        adminPassword
+                );
+
+        // send that request through API and expect created status back
+        mockMvc.perform(
+                        post("/api/companies/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        registrationRequest
+                                ))
+                )
+                .andExpect(status().isCreated());
+
+        // create a admin-login request
+        LoginRequest loginRequest =
+                new LoginRequest(
+                        adminEmail,
+                        adminPassword
+                );
+
+        // send that request through API and expect OK status back and save results
+        MvcResult loginResult = mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        loginRequest
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // get admin-access-token from results
+        String adminAccessToken = objectMapper.readTree(
+                        loginResult.getResponse().getContentAsString()
+                )
+                .get("accessToken")
+                .asString();
+
+        /*
+         send invalid enum value request with status:INVALID using
+         admin's JWT and expect error response DTO with bad request
+         status.
+         */
+        mockMvc.perform(
+                        get("/api/admin/employees")
+                                .param("status", "INVALID")
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value(
+                        "Invalid value 'INVALID' for parameter 'status'. " +
+                                "Allowed values: [ACTIVE, INACTIVE, TERMINATED]"
+                ))
+                .andExpect(jsonPath("$.path").value(
+                        "/api/admin/employees"
+                ));
+    }
+
+    /**
+     * This method-test verifies that the admin employee-list
+     * endpoint correctly paginates employees using the requested
+     * page and size. Three employees are created, then the endpoint
+     * is requested using a page size of two so the results must be
+     * split across two pages.
+     */
+    @Test
+    void adminEmployeeListSupportsPagination() throws Exception {
+        String adminEmail =
+                "pagination-admin-"
+                + UUID.randomUUID()
+                + "@labortrack.test";
+        String adminPassword = "PaginationAdmin123$";
+
+        // create (company + adminUser registration request)
+        CompanyRegistrationRequest registrationRequest =
+                new CompanyRegistrationRequest(
+                        "Pagination Test Company",
+                        adminEmail,
+                        adminPassword
+                );
+
+        // send that request through API and expect is created status back and save results
+        MvcResult registrationResult = mockMvc.perform(
+                        post("/api/companies/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        registrationRequest
+                                ))
+                )
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        // get companyId from results
+        Long companyId = objectMapper.readTree(
+                        registrationResult.getResponse().getContentAsString()
+                )
+                .get("companyId")
+                .asLong();
+
+        // create an admin-login request
+        LoginRequest loginRequest =
+                new LoginRequest(
+                        adminEmail,
+                        adminPassword
+                );
+
+        // send that request through API and expect OK status back and save results
+        MvcResult loginResult = mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        loginRequest
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // get the admin-access-token from results
+        String adminAccessToken = objectMapper.readTree(
+                        loginResult.getResponse().getContentAsString()
+                )
+                .get("accessToken")
+                .asString();
+
+        // create three (employee profile + employeeUser creation request)
+        EmployeeCreationRequest employeeOne =
+                new EmployeeCreationRequest(
+                        "Employee",
+                        "Alpha",
+                        "973-555-0301",
+                        new BigDecimal("25.00"),
+                        LocalDate.of(2026, 8, 4),
+                        null,
+                        "pagination-alpha-"
+                                + UUID.randomUUID()
+                                + "@labortrack.test"
+                );
+        EmployeeCreationRequest employeeTwo =
+                new EmployeeCreationRequest(
+                        "Employee",
+                        "Bravo",
+                        "973-555-0302",
+                        new BigDecimal("26.00"),
+                        LocalDate.of(2026, 8, 4),
+                        null,
+                        "pagination-bravo-"
+                                + UUID.randomUUID()
+                                + "@labortrack.test"
+                );
+        EmployeeCreationRequest employeeThree =
+                new EmployeeCreationRequest(
+                        "Employee",
+                        "Charlie",
+                        "973-555-0303",
+                        new BigDecimal("27.00"),
+                        LocalDate.of(2026, 8, 4),
+                        null,
+                        "pagination-charlie-"
+                                + UUID.randomUUID()
+                                + "@labortrack.test"
+                );
+        /*
+        send each request through API using admin access token (JWT)
+        and expect created status back for each one
+         */
+        mockMvc.perform(
+                        post(
+                                "/api/companies/{companyId}/employees",
+                                companyId
+                        )
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        employeeOne
+                                ))
+                )
+                .andExpect(status().isCreated());
+        mockMvc.perform(
+                        post(
+                                "/api/companies/{companyId}/employees",
+                                companyId
+                        )
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        employeeTwo
+                                ))
+                )
+                .andExpect(status().isCreated());
+        mockMvc.perform(
+                        post(
+                                "/api/companies/{companyId}/employees",
+                                companyId
+                        )
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        employeeThree
+                                ))
+                )
+                .andExpect(status().isCreated());
+
+        /*
+        then send a request to admin/employees using admin's (JWT)
+        and passing page:0 and size:2; This most return two employees.
+        First and second.
+         */
+        mockMvc.perform(
+                        get("/api/admin/employees")
+                                .param("page", "0")
+                                .param("size", "2")
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].lastName").value("Alpha"))
+                .andExpect(jsonPath("$.content[1].lastName").value("Bravo"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(false));
+
+        /*
+        again send a request to admin/employees using admin's (JWT)
+        and passing page:0 and size:2; This most return two employees.
+        Second and third.
+         */
+        mockMvc.perform(
+                        get("/api/admin/employees")
+                                .param("page", "1")
+                                .param("size", "2")
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].lastName").value("Charlie"))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.first").value(false))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
+    /**
      * This method-test verifies that the admin employee-list endpoint
-     * can filter employees by ACTIVE/INACTIVE status while remaining
-     * restricted to the authenticated company. Only will show company's
-     * employees.
+     * can filter employees by status while still returning only
+     * employees that belong to the authenticated admin's company.
      */
     @Test
     void adminEmployeeListCanFilterByStatus() throws Exception {
@@ -200,9 +487,10 @@ public class DashboardControllerTest {
         inactiveEmployee.setStatus(EmployeeStatus.INACTIVE);
         employeeRepository.saveAndFlush(inactiveEmployee);
 
-        // then perform a request to retrieve company employees
-        // using filters as ACTIVE so only retrieve active employees from the company
-        // expect first employee to show and second should not show because it is INACTIVE status
+        /*
+        Send the requests of employees with ACTIVE filter on
+        and expects only the first employee to be returned.
+         */
         mockMvc.perform(
                         get("/api/admin/employees")
                                 .param("status", "ACTIVE")
@@ -212,13 +500,21 @@ public class DashboardControllerTest {
                                 )
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].employeeId").value(activeEmployeeId))
-                .andExpect(jsonPath("$[0].status").value("ACTIVE"));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].employeeId").value(activeEmployeeId))
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(true));
 
-        // do another similar request but filter now to INACTIVE
-        // so show all INACTIVE employees from the company
-        // second employee must show up
+        /*
+        Send the requests of employees again but with INACTIVE filter on
+        and expects only the second employee to be returned.
+         */
         mockMvc.perform(
                         get("/api/admin/employees")
                                 .param("status", "INACTIVE")
@@ -228,9 +524,16 @@ public class DashboardControllerTest {
                                 )
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].employeeId").value(inactiveEmployeeId))
-                .andExpect(jsonPath("$[0].status").value("INACTIVE"));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].employeeId").value(inactiveEmployeeId))
+                .andExpect(jsonPath("$.content[0].status").value("INACTIVE"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(true));
     }
 
     /**
@@ -946,8 +1249,8 @@ public class DashboardControllerTest {
 
     /**
      * This method-test verifies that an authenticated admin receives
-     * only employees belonging to their own company when requesting
-     * the admin employee list.
+     * only employees that belong to their own company when requesting
+     * the admin employee list. (Company Isolation)
      */
     @Test
     void adminEmployeeListReturnsOnlyOwnCompanyEmployees() throws Exception {
@@ -1153,9 +1456,10 @@ public class DashboardControllerTest {
                 .andExpect(status().isCreated());
 
         /*
-         * request the employee list using company A's admin JWT.
-         * The response must contain employee A only. Employee B belongs
-         * to another company and must not appear.
+        Send the request of the employee list using company A admin's access token.
+        Only employee A should be returned because Employee B belongs to a different
+        company. Employee B should ONLY be accessed using adminBAccessToken NOT
+        adminAAccessToken. This proof (Company Isolation)
          */
         mockMvc.perform(
                         get("/api/admin/employees")
@@ -1168,12 +1472,13 @@ public class DashboardControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
                 ))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].employeeId").value(employeeAId))
-                .andExpect(jsonPath("$[0].email").value(employeeAEmail))
-                .andExpect(jsonPath("$[0].firstName").value("Employee"))
-                .andExpect(jsonPath("$[0].lastName").value("Alpha"));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].employeeId").value(employeeAId))
+                .andExpect(jsonPath("$.content[0].email").value(employeeAEmail))
+                .andExpect(jsonPath("$.content[0].firstName").value("Employee"))
+                .andExpect(jsonPath("$.content[0].lastName").value("Alpha"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     /**
@@ -1200,12 +1505,12 @@ public class DashboardControllerTest {
 
         // send that request through API and expect created status back and save results
         MvcResult registrationResult = mockMvc.perform(
-                post("/api/companies/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                registrationRequest
-                        ))
-        )
+                        post("/api/companies/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        registrationRequest
+                                ))
+                )
                 .andExpect(status().isCreated())
                 .andReturn();
 
@@ -1224,12 +1529,12 @@ public class DashboardControllerTest {
 
         // send that request through API and expect OK status back and save results
         MvcResult adminLoginResult = mockMvc.perform(
-                post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                adminLoginRequest
-                        ))
-        )
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        adminLoginRequest
+                                ))
+                )
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -1259,16 +1564,16 @@ public class DashboardControllerTest {
         // send that request through API using admin-access-token (JWT)
         // and expect created status back and save results
         MvcResult employeeCreationResult = mockMvc.perform(
-                post("/api/companies/{companyId}/employees", companyId)
-                        .header(
-                                AUTHORIZATION,
-                                "Bearer " + adminAccessToken
-                        )
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                employeeRequest
-                        ))
-        )
+                        post("/api/companies/{companyId}/employees", companyId)
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        employeeRequest
+                                ))
+                )
                 .andExpect(status().isCreated())
                 .andReturn();
 

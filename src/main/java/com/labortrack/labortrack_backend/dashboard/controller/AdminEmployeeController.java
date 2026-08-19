@@ -1,14 +1,16 @@
 package com.labortrack.labortrack_backend.dashboard.controller;
 
+import com.labortrack.labortrack_backend.common.dto.response.PageResponse;
 import com.labortrack.labortrack_backend.dashboard.dto.response.AdminEmployeeDetailResponse;
 import com.labortrack.labortrack_backend.dashboard.dto.response.AdminEmployeeListItemResponse;
 import com.labortrack.labortrack_backend.dashboard.service.DashboardService;
 import com.labortrack.labortrack_backend.employee.enums.EmployeeStatus;
 import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetails;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * This controller is used to expose admin employee endpoints
@@ -25,17 +27,25 @@ public class AdminEmployeeController {
     }
 
     /**
-     * This method-endpoint returns employees belonging to the authenticated
-     * given company (admin user). It has optional status param, that can be
-     * used to filter employees by ACTIVE or INACTIVE status.
+     * This method-endpoint returns a paginated list of employees
+     * that belongs to the authenticated admin's company. An optional
+     * status parameter can be used to filter employees by their
+     * current employee status.
      */
     @GetMapping
-    public List<AdminEmployeeListItemResponse> getEmployees(
+    public PageResponse<AdminEmployeeListItemResponse> getEmployees(
             @AuthenticationPrincipal LaborTrackUserDetails principal,
-            @RequestParam(required = false) EmployeeStatus status ) {
+            @RequestParam(required = false) EmployeeStatus status,
+            @PageableDefault(
+                    page = 0,
+                    size = 20,
+                    sort = {"lastName", "firstName"},
+                    direction = Sort.Direction.ASC
+            ) Pageable pageable) {
         return dashboardService.getAdminEmployees(
                 principal.getCompanyId(),
-                status
+                status,
+                pageable
         );
     }
 

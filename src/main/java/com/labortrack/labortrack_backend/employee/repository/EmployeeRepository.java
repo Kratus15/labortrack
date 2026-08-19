@@ -3,6 +3,8 @@ package com.labortrack.labortrack_backend.employee.repository;
 import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.employee.enums.EmployeeStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -36,16 +38,26 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
    long countByCompany_IdAndStatus(Long companyId, EmployeeStatus status);
 
     /**
-     * Finds all employees of given company and order them alphabetically
-     * by last name then first name.
+     * Finds all employees that belongs to the given company.
+     * Pagination and sorting are controlled by the provided Pageable
+     * object
      */
-   List<Employee> findByCompany_IdOrderByLastNameAscFirstNameAsc(Long companyId);
+   Page<Employee> findByCompany_Id(
+           Long companyId,
+           Pageable pageable
+   );
 
     /**
-     * Finds all employees of given company and requested status [active, inactive]
-     * and order them alphabetically by last name then first name.
+     * Finds all employees that belong to the given company
+     * and match the requested employee status [active, inactive, terminated].
+     * Pagination and sorting are controlled by the provided Pageable
+     * object
      */
-   List<Employee> findByCompany_IdAndStatusOrderByLastNameAscFirstNameAsc(Long companyId, EmployeeStatus status);
+    Page<Employee> findByCompany_IdAndStatus(
+            Long companyId,
+            EmployeeStatus status,
+            Pageable pageable
+    );
 
     /**
      * Finds an employee only when both employeeId and companyId match.

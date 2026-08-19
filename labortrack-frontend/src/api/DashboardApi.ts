@@ -5,6 +5,7 @@ import type {
     AdminEmployeeListItemResponse,
     EmployeeDashboardResponse,
     EmployeeStatus,
+    PageResponse,
     WorkSessionSummaryResponse
 } from './DashboardTypes'
 
@@ -32,14 +33,22 @@ export function getAdminDashboard(
  */
 export function getAdminEmployees(
     token: string,
+    page: number,
+    size: number,
     status?: EmployeeStatus
-): Promise<AdminEmployeeListItemResponse[]> {
-    const path = status
-        ? `/api/admin/employees?status=${status}`
-        : '/api/admin/employees'
+): Promise<PageResponse<AdminEmployeeListItemResponse>> {
 
-    return apiRequest<AdminEmployeeListItemResponse[]>(
-        path,
+    const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString()
+    })
+
+    if (status) {
+        params.set('status', status)
+    }
+
+    return apiRequest<PageResponse<AdminEmployeeListItemResponse>>(
+        `/api/admin/employees?${params.toString()}`,
         {
             method: 'GET',
             token,

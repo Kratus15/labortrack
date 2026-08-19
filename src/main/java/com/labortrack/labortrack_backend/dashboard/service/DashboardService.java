@@ -1,5 +1,6 @@
 package com.labortrack.labortrack_backend.dashboard.service;
 
+import com.labortrack.labortrack_backend.common.dto.response.PageResponse;
 import com.labortrack.labortrack_backend.common.exception.ResourceNotFoundException;
 import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.company.repository.CompanyRepository;
@@ -10,6 +11,8 @@ import com.labortrack.labortrack_backend.employee.repository.EmployeeRepository;
 import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import com.labortrack.labortrack_backend.worksession.enums.WorkSessionStatus;
 import com.labortrack.labortrack_backend.worksession.repository.WorkSessionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -232,25 +235,37 @@ public class DashboardService {
     }
 
     /**
-     * This method returns employees belonging only to the authenticated
-     * given company. This return a list of employees that each would have
-     * the necessary information because of compact DTO response.
+     * This method returns a paginated list of employees that belongs to the
+     * given company. If a status is provided, only employees with that status
+     * are included (filtering). Each employee would be converted into a compacted
+     * lightweight DTO for the admin employee list.
      */
-    public List<AdminEmployeeListItemResponse> getAdminEmployees(
+    public PageResponse<AdminEmployeeListItemResponse> getAdminEmployees(
             Long companyId,
-            EmployeeStatus status
+            EmployeeStatus status,
+            Pageable pageable
     ) {
-        // load all employees of the given company. If status was provided then filter.
-        List<Employee> employees = status == null
+        /*
+        load one page of employees for the given company. If a
+        status was provided, filter the employees by that status
+         */
+        Page<Employee> employeePage = status == null
                 ? employeeRepository
-                  .findByCompany_IdOrderByLastNameAscFirstNameAsc(companyId)
-                : employeeRepository
-                  .findByCompany_IdAndStatusOrderByLastNameAscFirstNameAsc(
+                  .findByCompany_Id(
                           companyId,
-                          status
+                          pageable)
+                : employeeRepository
+                  .findByCompany_IdAndStatus(
+                          companyId,
+                          status,
+                          pageable
                   );
 
-        // Load all the open work sessions of the given company and saved each work-session employee's id.
+        /*
+        load all currently open workSessions for the company
+        and collect the IDs of the employees who are currently
+        clocked in.
+         */
         Set<Long> clockedInEmployeeIds = workSessionRepository
                 .findByCompany_IdAndStatusOrderByClockInTimeDesc(
                         companyId,
@@ -260,21 +275,38 @@ public class DashboardService {
                 .map(session -> session.getEmployee().getId())
                 .collect(Collectors.toSet());
 
-        // convert each employee of the company into a more lightweight and compact DTO response.
-        return employees.stream()
-                .map(employee -> new AdminEmployeeListItemResponse(
-                        employee.getId(),
-                        employee.getFirstName(),
-                        employee.getLastName(),
-                        employee.getUser().getEmail(),
-                        employee.getPhone(),
-                        employee.getHourlyRate(),
-                        employee.getHireDate(),
-                        employee.getStatus(),
-                        employee.getProfileImageUrl(),
-                        clockedInEmployeeIds.contains(employee.getId())
-                ))
-                .toList();
+        /*
+        convert each employee in the current page into a compacted lightweight
+        DTO and include whether the employee is currently clocked in.
+         */
+        List<AdminEmployeeListItemResponse> content =
+                employeePage
+                        .getContent()
+                        .stream()
+                        .map(employee -> new AdminEmployeeListItemResponse(
+                                employee.getId(),
+                                employee.getFirstName(),
+                                employee.getLastName(),
+                                employee.getUser().getEmail(),
+                                employee.getPhone(),
+                                employee.getHourlyRate(),
+                                employee.getHireDate(),
+                                employee.getStatus(),
+                                employee.getProfileImageUrl(),
+                                clockedInEmployeeIds.contains(employee.getId())
+                        ))
+                        .toList();
+
+        // return the employee DTOs together with pagination metadata
+        return new PageResponse<>(
+                content,
+                employeePage.getNumber(),
+                employeePage.getSize(),
+                employeePage.getTotalElements(),
+                employeePage.getTotalPages(),
+                employeePage.isFirst(),
+                employeePage.isLast()
+        );
     }
 
     // HELPER METHODS

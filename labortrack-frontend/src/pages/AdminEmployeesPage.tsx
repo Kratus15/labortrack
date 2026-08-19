@@ -46,6 +46,15 @@ function AdminEmployeesPage() {
             ? statusParam
             : ''
 
+    // pagination vars
+    const [currentPage, setCurrentPage] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
+    const [isFirstPage, setIsFirstPage] = useState(true)
+    const [isLastPage, setIsLastPage] = useState(true)
+
+    // DEFAULT VALUE
+    const pageSize = 20
+
     // runs whenever the session changes
     useEffect(() => {
 
@@ -53,6 +62,8 @@ function AdminEmployeesPage() {
         if (!session) {
             return
         }
+
+        let cancelled = false
 
         // load employees
         async function loadEmployees() {
@@ -65,13 +76,29 @@ function AdminEmployeesPage() {
                 // make the request
                 const data = await getAdminEmployees(
                     session!.accessToken,
+                    currentPage,
+                    pageSize,
                     statusFilter || undefined
                 )
 
-                // saved returned data
-                setEmployees(data)
+                // ignore response if this effect is already outdated
+                if (cancelled) {
+                    return
+                }
+
+                // set the pagination vars
+                setEmployees(data.content)
+                setCurrentPage(data.page)
+                setTotalPages(data.totalPages)
+                setIsFirstPage(data.first)
+                setIsLastPage(data.last)
 
             } catch (error) {
+
+                if (cancelled) {
+                    return
+                }
+
                 // if something goes wrong save an error message
                 setError(
                     error instanceof Error
@@ -79,18 +106,25 @@ function AdminEmployeesPage() {
                         : 'Unable to load employees.'
                 )
             } finally {
-                setIsLoading(false)
+                if (!cancelled) {
+                    setIsLoading(false)
+                }
             }
         }
 
         // load the employees (call the func)
         void loadEmployees()
 
-        // run the effect again if authenticated session or statusFilter changes again
-    }, [session, statusFilter])
+        // if filter/page changes previous requests gets ignored
+        return () => {
+            cancelled = true
+        }
 
-    // while backend request is running display loading component
-    if (isLoading) {
+        // run the effect again if authenticated session or statusFilter changes again
+    }, [session, statusFilter, currentPage])
+
+    // while backend request is running display loading component (avoid blinking)
+    if (isLoading && employees.length === 0) {
         return <LoadingState message="Loading employees..." />
     }
 
@@ -127,6 +161,9 @@ function AdminEmployeesPage() {
                         const nextStatus =
                             event.target.value as EmployeeStatus | ''
 
+                        // RESET page to 0 when filter changes
+                        setCurrentPage(0)
+
                         if (nextStatus) {
                             setSearchParams({ status: nextStatus })
                         } else {
@@ -145,74 +182,108 @@ function AdminEmployeesPage() {
             */}
             </label>
 
+            {/* EMPLOYEES TABLE */}
             {employees.length === 0 ? (
                 <EmptyState message="No employees found." />
             ) : (
-                <SimpleTable
-                    headers={[
-                        'Name',
-                        'Email',
-                        'Status',
-                        'Clock Status',
-                        'Details'
-                    ]}
-                >
-                    {employees.map((employee) => (
-                        <tr key={employee.employeeId}>
-                            <td>
-                                <div className="employee-name-cell">
-                                    <UserAvatar
-                                        imageUrl={employee.profileImageUrl}
-                                        name={`${employee.firstName} ${employee.lastName}`}
-                                    />
+                <>
+                    <SimpleTable
+                        headers={[
+                            'Name',
+                            'Email',
+                            'Status',
+                            'Clock Status',
+                            'Details'
+                        ]}
+                    >
+                        {employees.map((employee) => (
+                            <tr key={employee.employeeId}>
+                                <td>
+                                    <div className="employee-name-cell">
+                                        <UserAvatar
+                                            imageUrl={employee.profileImageUrl}
+                                            name={`${employee.firstName} ${employee.lastName}`}
+                                        />
 
-                                    <span>
-                                        {employee.firstName} {employee.lastName}
-                                    </span>
-                                </div>
-                            </td>
+                                        <span>
+                                {employee.firstName} {employee.lastName}
+                            </span>
+                                    </div>
+                                </td>
 
-                            <td>{employee.email}</td>
+                                <td>{employee.email}</td>
 
-                            <td>
-                                <span
-                                    className={`status-badge ${
-                                        employee.status === 'ACTIVE'
-                                            ? 'status-active'
-                                            : employee.status === 'INACTIVE'
-                                                ? 'status-inactive'
-                                                : 'status-terminated'
-                                    }`}
-                                >
-                                    {employee.status}
-                                </span>
-                            </td>
+                                <td>
+                        <span
+                            className={`status-badge ${
+                                employee.status === 'ACTIVE'
+                                    ? 'status-active'
+                                    : employee.status === 'INACTIVE'
+                                        ? 'status-inactive'
+                                        : 'status-terminated'
+                            }`}
+                        >
+                            {employee.status}
+                        </span>
+                                </td>
 
-                            <td>
-                                <span
-                                    className={
-                                        employee.currentlyClockedIn
-                                            ? 'status-badge status-open'
-                                            : 'status-badge status-closed'
-                                    }
-                                >
-                                    {employee.currentlyClockedIn
-                                        ? 'Clocked In'
-                                        : 'Clocked Out'}
-                                </span>
-                            </td>
+                                <td>
+                        <span
+                            className={
+                                employee.currentlyClockedIn
+                                    ? 'status-badge status-open'
+                                    : 'status-badge status-closed'
+                            }
+                        >
+                            {employee.currentlyClockedIn
+                                ? 'Clocked In'
+                                : 'Clocked Out'}
+                        </span>
+                                </td>
 
-                            <td>
-                                <Link
-                                    className="view-link"
-                                    to={`/admin/employees/${employee.employeeId}`}
-                                >
-                                    View
-                                </Link>
-                            </td>
-                        </tr>
-                    ))}
-                </SimpleTable>
+                                <td>
+                                    <Link
+                                        className="view-link"
+                                        to={`/admin/employees/${employee.employeeId}`}
+                                    >
+                                        View
+                                    </Link>
+                                </td>
+                            </tr>
+                        ))}
+                    </SimpleTable>
+
+                    {/* PAGINATION CONTROLS */}
+                    <div className="pagination-controls">
+                        <button
+                            type="button"
+                            // disable pagination buttons while request is loading
+                            disabled={isFirstPage || isLoading}
+                            onClick={() =>
+                                setCurrentPage((page) => Math.max(0, page - 1))
+                            }
+                        >
+                            Previous
+                        </button>
+
+                        <span>
+                            Page {currentPage + 1} of {totalPages}
+                         </span>
+
+                        <button
+                            type="button"
+                            // disable pagination buttons while request is loading
+                            disabled={isLastPage || isLoading}
+                            onClick={() =>
+                                setCurrentPage((page) =>
+                                    Math.min(totalPages - 1, page + 1)
+                                )
+                            }
+                        >
+                            Next
+                        </button>
+                    </div>
+                </>
             )}
         </PageContainer>
     )

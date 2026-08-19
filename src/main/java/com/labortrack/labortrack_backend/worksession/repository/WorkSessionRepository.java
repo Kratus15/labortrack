@@ -4,6 +4,8 @@ import com.labortrack.labortrack_backend.company.entity.Company;
 import com.labortrack.labortrack_backend.employee.entity.Employee;
 import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import com.labortrack.labortrack_backend.worksession.enums.WorkSessionStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -76,6 +78,15 @@ public interface WorkSessionRepository extends JpaRepository<WorkSession, Long> 
     Optional<WorkSession> findFirstByEmployee_IdAndStatusOrderByClockInTimeDesc(
             Long employeeId,
             WorkSessionStatus status
+    );
+
+    /**
+     * Finds one employee's work-session history using pagination.
+     * Sorting is controlled by the provided Pageable object.
+     */
+    Page<WorkSession> findByEmployee_Id(
+            Long employeeId,
+            Pageable pageable
     );
 
     /**

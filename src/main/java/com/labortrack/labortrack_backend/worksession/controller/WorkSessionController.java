@@ -1,5 +1,6 @@
 package com.labortrack.labortrack_backend.worksession.controller;
 
+import com.labortrack.labortrack_backend.common.dto.response.PageResponse;
 import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetails;
 import com.labortrack.labortrack_backend.user.enums.UserRole;
 import com.labortrack.labortrack_backend.worksession.dto.response.ClockInResponse;
@@ -7,13 +8,16 @@ import com.labortrack.labortrack_backend.worksession.dto.response.ClockOutRespon
 import com.labortrack.labortrack_backend.worksession.dto.response.WorkSessionResponse;
 import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import com.labortrack.labortrack_backend.worksession.service.WorkSessionService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Objects;
 
 @RestController
@@ -100,36 +104,59 @@ public class WorkSessionController {
     }
 
     /**
-     * Retrieve employee work-session history ordered by clock-in time, newest first.
-     * This operation would be performed only if employee exists, otherwise will be
-     * thrown on service layer. If employee does not have workSessions, it will simply
-     * be an empty list.
+     * This method-endpoint retrieves a paginated employee's
+     * work-session history. Work sessions are ordered by
+     * clock-in time, newest first. Employees can only retrieve
+     * history only for employees in their company.
      */
     @GetMapping("/{employeeId}/work-sessions")
-    public ResponseEntity<List<WorkSessionResponse>> getWorkSessions(
+    public ResponseEntity<PageResponse<WorkSessionResponse>> getWorkSessions(
             @PathVariable Long employeeId,
-            @AuthenticationPrincipal LaborTrackUserDetails authenticatedUser
+            @AuthenticationPrincipal LaborTrackUserDetails authenticatedUser,
+            @PageableDefault(
+                    page = 0,
+                    size = 20,
+                    sort = "clockInTime",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable
     ) {
         // employee can only request for their own work-session history.
         if (authenticatedUser.getRole() == UserRole.EMPLOYEE) {
             validateEmployeeOwnership(authenticatedUser, employeeId);
         }
 
-        // instead of using the param employeeId, use the authenticated user employeeId (SAFETY)
-        // an admin can select an employee from the url, but the service must verifies that employee
-        // belongs to the admin's company
+        /*
+        instead of using the param employeeId, use the authenticated user employeeId (SAFETY)
+        an admin can select an employee from the url, but the service must verifies that employee
+        belongs to the admin's company
+         */
         Long authorizedEmployeeId =
                 authenticatedUser.getRole() == UserRole.EMPLOYEE
                 ? authenticatedUser.getEmployeeId()
                         : employeeId;
 
-        List<WorkSessionResponse> response = workSessionService
-                .getWorkSessionsForEmployee(
-                        authorizedEmployeeId,
-                        authenticatedUser.getCompanyId())
-                .stream()
-                .map(this::toWorkSessionResponse)
-                .toList();
+       Page<WorkSession> workSessionPage =
+               workSessionService.getWorkSessionsForEmployee(
+                       authorizedEmployeeId,
+                       authenticatedUser.getCompanyId(),
+                       pageable
+               );
+
+       // convert raw entity into lightweight DTO
+       Page<WorkSessionResponse> responsePage =
+               workSessionPage.map(this::toWorkSessionResponse);
+
+       // send that DTO using Page format DTO
+       PageResponse<WorkSessionResponse> response =
+            new PageResponse<>(
+            responsePage.getContent(),
+            responsePage.getNumber(),
+            responsePage.getSize(),
+            responsePage.getTotalElements(),
+            responsePage.getTotalPages(),
+            responsePage.isFirst(),
+            responsePage.isLast()
+            );
 
         return ResponseEntity.ok(response);
     }

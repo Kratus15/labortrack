@@ -40,6 +40,95 @@ class WorkSessionControllerTest {
     private EmployeeService employeeService;
 
     /**
+     * This method-test verifies that an employee's work-session
+     * history is correctly paginated. Three closed work sessions
+     * are created and requested using a page size of two, which
+     * should split the history across two pages.
+     */
+    @Test
+    void getWorkSessionSupportsPagination() throws Exception {
+        // create test employee
+        Employee testEmployee = createTestEmployee();
+
+        // create authenticated employee
+        LaborTrackUserDetails authenticatedEmployee =
+                createEmployeePrincipal(testEmployee);
+
+        /*
+        create three CLOSED work sessions by clocking the
+        employee in and out three separate times.
+         */
+        for (int i = 0; i < 3; i++) {
+
+            mockMvc.perform(
+                            post(
+                                    "/api/employees/{employeeId}/clock-in",
+                                    testEmployee.getId()
+                            )
+                                    .with(user(authenticatedEmployee))
+                    )
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(
+                            post(
+                                    "/api/employees/{employeeId}/clock-out",
+                                    testEmployee.getId()
+                            )
+                                    .with(user(authenticatedEmployee))
+                    )
+                    .andExpect(status().isOk());
+        }
+
+        /*
+        send a request to /api/employees/{employeeId}/work-sessions
+        using authenticated employee with page: 0 and size: 2; Two
+        of the three work sessions should be returned. First and second.
+         */
+        mockMvc.perform(
+                        get(
+                                "/api/employees/{employeeId}/work-sessions",
+                                testEmployee.getId()
+                        )
+                                .param("page", "0")
+                                .param("size", "2")
+                                .with(user(authenticatedEmployee))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(false));
+
+        /*
+        send a request to /api/employees/{employeeId}/work-sessions again
+        using authenticated employee but now with page: 1 and size: 2; Two
+        of the three work sessions should be returned. Second and third.
+         */
+        mockMvc.perform(
+                        get(
+                                "/api/employees/{employeeId}/work-sessions",
+                                testEmployee.getId()
+                        )
+                                .param("page", "1")
+                                .param("size", "2")
+                                .with(user(authenticatedEmployee))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.first").value(false))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
+    /**
      * This test checks if an active employee can clock-in through the API.
      * So it's testing functionality of workSession service and repository layers.
      * First create a test company, save it, then create a test employee that belongs
@@ -188,10 +277,11 @@ class WorkSessionControllerTest {
     }
 
     /**
-     * This test checks if the API can return an employee's work-session history
-     * while the employee still has an open work session. It clocks the employee
-     * in and retrieves the history. The response should return status 200 with
-     * the OPEN session, no clock-out time, and no worked minutes yet.
+     * This method-test verifies that the employee's work-session
+     * history endpoint correctly returns an OPEN work session. The
+     * employee is clocked in, then their history is retrieved and
+     * should contain the open session with no clock-out time or
+     * worked minutes.
      */
     @Test
     void getWorkSessionsReturnsOpenWorkSessionHistory() throws Exception {
@@ -202,35 +292,46 @@ class WorkSessionControllerTest {
         LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
 
         // send authenticated user with every request
-        // create one open workSession
+
+        // clock the employee in to create one OPEN work session
         mockMvc.perform(post("/api/employees/{employeeId}/clock-in", testEmployee.getId())
                 .with(user(authenticatedEmployee)))
                 .andExpect(status().isCreated());
 
-        // retrieve employee work-sessions and expect the open work-session above first.
+        /*
+        retrieve employee's work-sessions history and expect the
+        OPEN work-session is returned with pagination metadata.
+         */
         mockMvc.perform(get("/api/employees/{employeeId}/work-sessions", testEmployee.getId())
                 .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(
                         MediaType.APPLICATION_JSON
                 ))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].workSessionId").isNumber())
-                .andExpect(jsonPath("$[0].companyId")
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].workSessionId").isNumber())
+                .andExpect(jsonPath("$.content[0].companyId")
                         .value(testEmployee.getCompany().getId()))
-                .andExpect(jsonPath("$[0].employeeId")
+                .andExpect(jsonPath("$.content[0].employeeId")
                         .value(testEmployee.getId()))
-                .andExpect(jsonPath("$[0].clockInTime").exists())
-                .andExpect(jsonPath("$[0].clockOutTime").doesNotExist())
-                .andExpect(jsonPath("$[0].status").value("OPEN"))
-                .andExpect(jsonPath("$[0].workedMinutes").doesNotExist());
+                .andExpect(jsonPath("$.content[0].clockInTime").exists())
+                .andExpect(jsonPath("$.content[0].clockOutTime").doesNotExist())
+                .andExpect(jsonPath("$.content[0].status").value("OPEN"))
+                .andExpect(jsonPath("$.content[0].workedMinutes").doesNotExist())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(true));
     }
 
     /**
-     * This test checks if a closed work session appears correctly in the
-     * employee's work-session history. It clocks the employee in and out,
-     * then retrieves the history. The returned session should be CLOSED
-     * and include the clock-out time and worked minutes.
+     * This method-test verifies that the employee work-session history
+     * endpoint correctly return a CLOSED work-session. The employee is
+     * clocked in and then clock out, and the returned session should
+     * include a clock out time and worked minutes.
      */
     @Test
     void getWorkSessionsReturnsClosedWorkSessionHistory() throws Exception {
@@ -240,7 +341,8 @@ class WorkSessionControllerTest {
         LaborTrackUserDetails authenticatedEmployee = createEmployeePrincipal(testEmployee);
 
         // send authenticated user with every request
-        // Create an open work session
+
+        // clock the employee in to create an OPEN work session
         mockMvc.perform(post(
                         "/api/employees/{employeeId}/clock-in",
                         testEmployee.getId()
@@ -248,7 +350,7 @@ class WorkSessionControllerTest {
                         .with(user(authenticatedEmployee)))
                 .andExpect(status().isCreated());
 
-        // Close the work session
+        // clock the employee out to close the current work session
         mockMvc.perform(post(
                         "/api/employees/{employeeId}/clock-out",
                         testEmployee.getId()
@@ -256,26 +358,33 @@ class WorkSessionControllerTest {
                         .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk());
 
-        // Retrieve the closed work session from the employee history.
+        /*
+        retrieve the employee's work-session history and verify that
+        the CLOSED session is returned with its metadata
+         */
         mockMvc.perform(get(
                         "/api/employees/{employeeId}/work-sessions",
                         testEmployee.getId()
                 )
                         .with(user(authenticatedEmployee)))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(
-                        MediaType.APPLICATION_JSON
-                ))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].workSessionId").isNumber())
-                .andExpect(jsonPath("$[0].companyId")
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].workSessionId").isNumber())
+                .andExpect(jsonPath("$.content[0].companyId")
                         .value(testEmployee.getCompany().getId()))
-                .andExpect(jsonPath("$[0].employeeId")
+                .andExpect(jsonPath("$.content[0].employeeId")
                         .value(testEmployee.getId()))
-                .andExpect(jsonPath("$[0].clockInTime").exists())
-                .andExpect(jsonPath("$[0].clockOutTime").exists())
-                .andExpect(jsonPath("$[0].status").value("CLOSED"))
-                .andExpect(jsonPath("$[0].workedMinutes").isNumber());
+                .andExpect(jsonPath("$.content[0].clockInTime").exists())
+                .andExpect(jsonPath("$.content[0].clockOutTime").exists())
+                .andExpect(jsonPath("$.content[0].status").value("CLOSED"))
+                .andExpect(jsonPath("$.content[0].workedMinutes").isNumber())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(true));
     }
 
     /**

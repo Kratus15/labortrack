@@ -8,13 +8,14 @@ import com.labortrack.labortrack_backend.employee.repository.EmployeeRepository;
 import com.labortrack.labortrack_backend.worksession.entity.WorkSession;
 import com.labortrack.labortrack_backend.worksession.enums.WorkSessionStatus;
 import com.labortrack.labortrack_backend.worksession.repository.WorkSessionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -31,22 +32,28 @@ public class WorkSessionService {
     }
 
     /**
-     * Retrieves an employee's work-session history ordered by
-     * clock-in time, newest first. Verifies that the employee exists
-     * before retrieving the sessions.
+     * This method returns a paginated work-session history
+     * for the given employee. Verifies that the employee
+     * exists and belongs to the authenticated company before
+     * retrieving the employee's work sessions.
      */
     @Transactional(readOnly = true)
-    public List<WorkSession> getWorkSessionsForEmployee(
+    public Page<WorkSession> getWorkSessionsForEmployee(
             Long employeeId,
-            Long authenticatedCompanyId) {
+            Long authenticatedCompanyId,
+            Pageable pageable
+    ) {
 
+        // Find the employee by ID or throw exception
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee with id=" + employeeId + " not found."
                 ));
 
-        // prevent an authenticated user from accessing an employee
-        // that belongs to another company
+        /*
+        verifies that the employee belongs to the authenticated
+        company. This enforces company isolation.
+         */
         if (!Objects.equals(
                 employee.getCompany().getId(),
                 authenticatedCompanyId
@@ -55,8 +62,11 @@ public class WorkSessionService {
                     "You cannot access employees from another company."
             );
         }
-        return workSessionRepository
-                .findByEmployeeOrderByClockInTimeDesc(employee);
+
+        return workSessionRepository.findByEmployee_Id(
+                employeeId,
+                pageable
+        );
     }
 
     /**

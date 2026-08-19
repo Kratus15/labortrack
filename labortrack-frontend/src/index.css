@@ -421,6 +421,41 @@ body {
   background-color: #f3f4f6;
 }
 
+/* PAGINATION CONTROL */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination-controls button {
+  padding: 7px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.pagination-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagination-controls span {
+  min-width: 100px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 /* EMPLOYEE PROFILE IMAGE AND NAME */
 .employee-heading {
   display: flex;

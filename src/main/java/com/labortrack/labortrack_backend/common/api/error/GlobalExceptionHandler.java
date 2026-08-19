@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -41,6 +42,40 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.BAD_REQUEST,
                 "Request body contains malformed or unreadable JSON",
+                request.getRequestURI(),
+                null
+        );
+    }
+
+    /**
+     * This method-exception handles invalid request parameter values, such
+     * as when a parameter cannot be converted to the expected type. If
+     * The expected type is an enum, the response also shows the list of
+     * allowed enum values.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request
+    ) {
+        // default error message
+        String message = "Invalid value for request parameter: " + ex.getName();
+
+        // if the expected parameter is an enum, give a more detail error message
+        if (ex.getRequiredType() != null && ex.getRequiredType().isEnum()) {
+            Object[] allowedValues = ex.getRequiredType().getEnumConstants();
+
+            message =
+                    "Invalid value '" + ex.getValue()
+                    + "' for parameter '" + ex.getName()
+                    + "'. Allowed values: "
+                    + java.util.Arrays.toString(allowedValues);
+        }
+
+        // return a standard 400 bad request API error response
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                message,
                 request.getRequestURI(),
                 null
         );
