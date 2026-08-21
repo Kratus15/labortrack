@@ -5,7 +5,11 @@ import com.labortrack.labortrack_backend.security.handler.RestAccessDeniedHandle
 import com.labortrack.labortrack_backend.security.handler.RestAuthenticationEntryPoint;
 import com.labortrack.labortrack_backend.security.jwt.JwtAuthenticationFilter;
 import com.labortrack.labortrack_backend.security.jwt.JwtProperties;
+import com.labortrack.labortrack_backend.security.ratelimit.RateLimitFilter;
+import com.labortrack.labortrack_backend.security.ratelimit.RateLimitProperties;
+import com.labortrack.labortrack_backend.security.ratelimit.RateLimitService;
 import com.labortrack.labortrack_backend.security.user.LaborTrackUserDetailsService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +26,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -40,24 +45,27 @@ import java.util.List;
  * endpoints even after authenticated.
  */
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({
+        JwtProperties.class,
+        RateLimitProperties.class
+})
 public class SecurityConfig {
 
     /**
-     * This Bean allows the local React frontend to
-     * communicate with the Spring Boot API during
-     * development. Both React and Spring Boots shares
-     * the same host "localhost" but different ports
-     * [5173, 8080]. Therefore, Cors allowed Spring
-     * Boots backend to received API calls from
-     * frontend or the URL specify.
+     * This bean configures which frontend origins are allowed
+     * to communicate with the LaborTrack backend API.
+     * Development can use localhost, while production can
+     * provide its deployed frontend domain through configuration.
      */
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${security.cors.allowed-origins}")
+            List<String> allowedOrigins
+    ) {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
+                allowedOrigins
         );
 
         configuration.setAllowedMethods(
@@ -122,8 +130,19 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter,
             PasswordChangeRequiredFilter passwordChangeRequiredFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
-            RestAccessDeniedHandler accessDeniedHandler)
-            throws Exception{
+            RestAccessDeniedHandler accessDeniedHandler,
+            RateLimitProperties rateLimitProperties,
+            RateLimitService rateLimitService,
+            ObjectMapper objectMapper)
+            throws Exception
+    {
+        // create the custom rate limit filter
+        RateLimitFilter rateLimitFilter =
+                new RateLimitFilter(
+                        rateLimitProperties,
+                        rateLimitService,
+                        objectMapper
+                );
 
         http
                 // allowed the Bean to allow our fronted's request calls
@@ -207,6 +226,12 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
+                )
+
+                // add rate limit filter before JWT filter
+                .addFilterBefore(
+                        rateLimitFilter,
+                        JwtAuthenticationFilter.class
                 )
 
                 // add passwordChange filter after JWT filter

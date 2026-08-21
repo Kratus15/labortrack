@@ -31,8 +31,18 @@
 
 		<!-- from JJWT currently lastest version -->
 		<jjwt.version>0.13.0</jjwt.version>
+
+		<!-- Bucket4j rate limiting -->
+		<bucket4j.version>8.19.0</bucket4j.version>
 	</properties>
 	<dependencies>
+
+		<!-- IN-MEMORY API RATE LIMITING -->
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j_jdk17-core</artifactId>
+			<version>${bucket4j.version}</version>
+		</dependency>
 		<!-- SPRING SECURITY-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
