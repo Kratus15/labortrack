@@ -1,0 +1,22 @@
+# backend build output
+target/
+
+# local configuration and secrets
+config/
+.env
+.env.*
+
+# Frontend has its own Docker build context
+labortrack-frontend/
+
+# Git and IDE files
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Logs
+*.log
+notes.txt
+
+# Personal project notes

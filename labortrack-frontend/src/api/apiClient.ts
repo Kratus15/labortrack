@@ -6,12 +6,13 @@ import { clearAuthSession } from '../auth/AuthStorage'
  * we simply build this common logic.
  */
 
-// backend URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-
-if (!API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL is not configured')
-}
+/*
+ Use the configured backend url when provided. In prod,
+ an empty base url lets nginx proxy /api requests to
+ the backend container. But in local, the external file
+ will be over so check .env.development
+ */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export class ApiError extends Error {
     status: number
