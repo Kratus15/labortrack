@@ -1,0 +1,95 @@
+# GitHub Actions workflow used to automatically verify LaborTrack
+# whenever code is pushed or a pull request is opened.
+# The backend job runs the Maven tests suite (./mvnw clean test)
+# with PostgreSQL, while the frontend job verifies the production
+# React build (npm run build). If both jobs pass, CI succeeds
+# and the project is ready for later deployment work.
+
+name: LaborTrack CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # backend continuous integration job
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    # start a PostgreSQL container that the backend-test can use
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        # CI test credentials are stored as GitHub repository secrets
+        env:
+          POSTGRES_DB: labortrack_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+
+        ports:
+          - 5432:5432
+
+        # wait until PostgreSQL is healthy before running the tests
+        options: >-
+          --health-cmd="pg_isready -U postgres -d labortrack_test_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    # Environment vars used by the backend test configuration
+    env:
+      TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/labortrack_test_db
+      TEST_POSTGRES_USERNAME: postgres
+      TEST_POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+      TEST_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+
+    steps:
+      # download the repository code into the GitHub runner
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # install Java 21 and enable Maven dependencies caching
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Give Maven's wrapper permission to run on Linux
+      - name: Make Maven wrapper executable
+        run: chmod +x mvnw
+
+      # Run the complete backend-tests
+      - name: Run backend tests
+        run: ./mvnw clean test
+
+  # frontend continuous integration job
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # download the repository code into the GitHub runner
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # install Node.js 24 and cache npm dependencies
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: labortrack-frontend/package-lock.json
+
+      # install the exact dependencies from package-lock.json
+      - name: Install frontend dependencies
+        working-directory: labortrack-frontend      # cd labortrack-frontend
+        run: npm ci
+
+      # now run TypeScript build
+      - name: Build frontend
+        working-directory: labortrack-frontend
+        run: npm run build
