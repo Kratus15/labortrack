@@ -1,0 +1,69 @@
+services:
+
+  # PostgreSQL container (no ports)
+  db:
+    image: postgres:17-alpine
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    # brings container back up automatically
+    restart: unless-stopped
+
+  # Backend container (no ports)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    environment:
+      POSTGRES_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      POSTGRES_USERNAME: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+
+      JPA_SHOW_SQL: "false"
+      JPA_FORMAT_SQL: "false"
+
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+
+    # needs the postgres container before starting
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+  # Frontend container
+  frontend:
+    build:
+      context: ./labortrack-frontend
+      dockerfile: Dockerfile
+
+    # needs the backend container before starting
+    depends_on:
+      - backend
+
+    ports:
+      - "80:80"
+
+    restart: unless-stopped
+
+
+volumes:
+  postgres_data:
