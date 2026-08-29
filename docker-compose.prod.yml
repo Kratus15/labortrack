@@ -23,6 +23,8 @@ services:
 
   # Backend container (no ports)
   backend:
+    image: "labortrack-backend:${IMAGE_TAG:?IMAGE_TAG must be set}"
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -51,6 +53,8 @@ services:
 
   # Frontend container
   frontend:
+    image: "labortrack-frontend:${IMAGE_TAG:?IMAGE_TAG must be set}"
+
     build:
       context: ./labortrack-frontend
       dockerfile: Dockerfile
