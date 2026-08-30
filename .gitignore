@@ -38,6 +38,12 @@ build/
 !.env.example
 !.env.production.example
 
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
 ### Personal project notes
 notes.txt
 DEPLOYMENT1.md
