@@ -1,7 +1,5 @@
 # LaborTrack
 
-# LaborTrack
-
 **Employee Time Tracking & Workforce Management**
 
 LaborTrack is a full-stack application designed to help small businesses manage employees, track work hours, and monitor workforce activity.
