@@ -6,7 +6,7 @@ LaborTrack is a full-stack application designed to help small businesses manage 
 
 Built with **Java 21, Spring Boot, PostgreSQL, React, and TypeScript**, with Dockerized deployment on AWS EC2.
 
-**[Live Application](#Live-App) · [90-Second Walkthrough](#90-second-demo) · [Local Setup](#running-locally) · [Architecture](#architecture)**
+**[Live Application](#live-app) · [90-Second Walkthrough](#90-second-demo) · [Local Setup](#running-locally) · [Architecture](#architecture)**
 
 ### Engineering Highlights
 
@@ -19,8 +19,6 @@ Built with **Java 21, Spring Boot, PostgreSQL, React, and TypeScript**, with Doc
 ### Current Limitations
 
 The application currently runs on one EC2 instance, so it is not highly available. Automated deployment, HTTPS, monitoring, and additional employee-management capabilities are planned improvements.
-
-**Tech:** Java 21 · Spring Boot · PostgreSQL · React · TypeScript · Docker · GitHub Actions · AWS
 
 ## Live App
 
