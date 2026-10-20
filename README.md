@@ -1,16 +1,30 @@
 # LaborTrack
 
-LaborTrack is a full-stack employee time-tracking application built for small businesses.<br>
-It allows admins to manage employees and monitor workforce activity, while employees<br>
-can clock in and out and review their own work sessions.
+# LaborTrack
 
-The application includes JWT authentication, role-based authorization, company-level<br>
-data isolation, rate limiting, automated testing and CI, Dockerized deployment, and <br>
-a live deployment on AWS.
+**Employee Time Tracking & Workforce Management**
+
+LaborTrack is a full-stack application designed to help small businesses manage employees, track work hours, and monitor workforce activity.
+
+Built with **Java 21, Spring Boot, PostgreSQL, React, and TypeScript**, with Dockerized deployment on AWS EC2.
+
+**[Live Application](#Live-App) · [90-Second Walkthrough](#90-second-demo) · [Local Setup](#running-locally) · [Architecture](#architecture)**
+
+### Engineering Highlights
+
+- **Security:** JWT authentication, role-based authorization, BCrypt password hashing, and company-level data isolation.
+- **Data integrity:** PostgreSQL constraints prevent multiple open work sessions for the same employee.
+- **Backend design:** Paginated REST APIs, timezone-aware workforce calculations, and Flyway database migrations.
+- **Testing:** 66 backend automated tests with GitHub Actions CI.
+- **Deployment:** Nginx, Spring Boot, and PostgreSQL running in separate Docker containers on AWS EC2.
+
+### Current Limitations
+
+The application currently runs on one EC2 instance, so it is not highly available. Automated deployment, HTTPS, monitoring, and additional employee-management capabilities are planned improvements.
 
 **Tech:** Java 21 · Spring Boot · PostgreSQL · React · TypeScript · Docker · GitHub Actions · AWS
 
-## Live Demo
+## Live App
 
 **Application:** [Open LaborTrack](http://54.227.19.178/)
 
