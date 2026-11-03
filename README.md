@@ -4,7 +4,7 @@
 
 LaborTrack is a full-stack application designed to help small businesses manage employees, track work hours, and monitor workforce activity.
 
-Built with **Java 21, Spring Boot, PostgreSQL, React, and TypeScript**, with Dockerized deployment on AWS EC2.
+Built with **Java 21, Spring Boot, PostgreSQL, React, and TypeScript.** Deployed using Docker Compose on AWS Lightsail, following an initial deployment on AWS EC2.
 
 **[Live Application](#live-app) · [90-Second Walkthrough](#90-second-demo) · [Local Setup](#running-locally) · [Architecture](#architecture)**
 
@@ -14,11 +14,11 @@ Built with **Java 21, Spring Boot, PostgreSQL, React, and TypeScript**, with Doc
 - **Data integrity:** PostgreSQL constraints prevent multiple open work sessions for the same employee.
 - **Backend design:** Paginated REST APIs, timezone-aware workforce calculations, and Flyway database migrations.
 - **Testing:** 66 backend automated tests with GitHub Actions CI.
-- **Deployment:** Nginx, Spring Boot, and PostgreSQL running in separate Docker containers on AWS EC2.
+- **Deployment:** Containerized Nginx, Spring Boot, and PostgreSQL with Docker Compose. Initially deployed on AWS EC2, then migrated to Lightsail to reduce infrastructure costs.
 
 ### Current Limitations
 
-The application currently runs on one EC2 instance, so it is not highly available. Automated deployment, HTTPS, monitoring, and additional employee-management capabilities are planned improvements.
+LaborTrack currently runs on a single AWS Lightsail instance, so it is not highly available. HTTPS, automated deployment, application-level monitoring, and additional employee-management capabilities are planned improvements.
 
 ## Live App
 
@@ -155,8 +155,9 @@ build the same idea more carefully and make engineering decisions I could actual
 - Docker Compose
 - Nginx
 - GitHub Actions
-- AWS EC2
-
+- AWS Lightsail (current deployment)
+- AWS EC2 (initial deployment)
+- AWS Budgets (cost monitoring)
 
 ## Architecture
 
@@ -187,26 +188,35 @@ same Docker network.
 
 ### AWS Deployment
 
-The current deployment runs on a single AWS EC2 instance using Docker Compose.
+The current deployment runs on a single AWS Lightsail Ubuntu instance using Docker Compose.<br>
+LaborTrack was initially deployed on AWS EC2 before being migrated to Lightsail.
 
 ```
 Internet
-   |
-   v
-AWS EC2
-   |
-   v
-Nginx / React
-   |
-   v
-Spring Boot
-   |
-   v
-PostgreSQL
+    |
+    v
+AWS Lightsail (Ubuntu)
+    |
+    v
+Docker Compose
+    |
+    v
+Nginx / React (Public port 80)
+    |
+    | /api
+    v
+Spring Boot (Internal port 8080)
+    |
+    v
+PostgreSQL (Internal port 5432)
+    |
+    v
+Persistent Docker Volume
 ```
 
 Only the Nginx/frontend entry point is exposed publicly. Spring Boot and PostgreSQL<br>
-communicate through Docker's internal network and are not directly exposed to the internet.
+communicate through Docker's internal network and are not directly exposed to the internet.<br>
+Lightsail uses a static IPv4 address, while backend and database traffic remain within Docker's internal network.
 
 ## Database Design
 
@@ -267,11 +277,21 @@ Employee lists and work-session history use pagination instead of returning ever
 once. This keeps API responses smaller and gives the frontend a predictable way to navigate<br>
 larger datasets.
 
-### Simple Deployment First
+### Infrastructure Right-Sizing and Cost Optimization
 
-I considered using more AWS services and a more complex architecture, but the current MVP<br>
-does not need that complexity. I chose a single-EC2 deployment because it keeps the system<br>
-easier to understand and maintain while keeping infrastructure costs low.
+I initially deployed LaborTrack on a single AWS EC2 t3.small instance using Docker Compose, rather<br>
+than introducing services such as ECS, RDS, or an Application Load Balancer. This kept the infrastructure<br>
+simple while allowing me to learn how to deploy and operate the full application on AWS.<br>
+
+After monitoring actual CPU, memory, and disk usage, I realized the application did not need the flexibility<br>
+or ongoing cost of my original EC2 setup. I migrated LaborTrack to a **2 GB AWS Lightsail** instance while keeping<br>
+the same Docker Compose architecture. This reduced estimated **monthly hosting costs from approximately $22 to<br>
+$12 without removing application functionality.**
+
+Before retiring EC2, I backed up PostgreSQL, verified the backup checksum, restored the database on Lightsail,<br>
+and tested the application using existing accounts. I also performed a separate test restore before deleting the<br>
+original EC2 resources. This reinforced an important lesson: infrastructure should match actual application requirements,<br>
+not simply use more services because they are available.<br>
 
 For now, I only want to add more infrastructure when LaborTrack actually needs it.
 
@@ -284,6 +304,9 @@ Things I learned while building it:
 - More complexity does not automatically make a system better. I originally considered<br>
   microservices, caching, more AWS services, and gateway-level rate limiting before the<br>
   application had a real need for them.
+- Migrating a live application requires more than moving containers. I learned to verify<br>
+  database backups, test restores, compare records, and validate the new deployment before<br>
+  removing the old infrastructure.
 - Security is easier to design into a feature from the beginning than to add afterward.
 - Important business rules should not rely only on application code when the database can<br>
   help enforce them too.
@@ -327,16 +350,18 @@ The CI pipeline:
 
 ## Deployment
 
-LaborTrack is currently deployed on AWS using a single EC2 instance with Docker Compose.
+LaborTrack is currently hosted on AWS Lightsail using a single Ubuntu instance running three<br>
+Docker containers: React/Nginx, Spring Boot, and PostgreSQL.
 
-The deployment runs the React/Nginx frontend, Spring Boot backend, and PostgreSQL database<br>
-as separate containers.
+The application was originally deployed on AWS EC2 and later migrated to Lightsail as a cost<br>
+optimization. This reduced the estimated recurring hosting cost **from approximately $22/month<br>
+to $12/month** while preserving the existing application architecture and database.
 
-I chose this setup because it keeps the infrastructure simple and the operating cost low<br>
-while still giving me hands-on experience deploying on AWS.
+Production Docker images are tagged using exact Git commit SHAs for deployment traceability.<br>
+GitHub Actions handles continuous integration, while production deployments are currently<br>
+performed manually.
 
-The tradeoff is that the current deployment is not highly available. If the single EC2<br>
-instance becomes unavailable, the application becomes unavailable as well.
+The tradeoff is that LaborTrack runs on a single server and is not highly available.
 
 ## Running Locally
 
