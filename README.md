@@ -22,7 +22,7 @@ The application currently runs on one EC2 instance, so it is not highly availabl
 
 ## Live App
 
-**Application:** [Open LaborTrack](http://54.227.19.178/)
+**Application:** [Open LaborTrack](http://184.197.205.17/)
 
 You can explore the application using either demo account:
 
