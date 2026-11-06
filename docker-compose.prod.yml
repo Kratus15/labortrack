@@ -23,7 +23,7 @@ services:
 
   # Backend container (no ports)
   backend:
-    image: "labortrack-backend:${IMAGE_TAG:?IMAGE_TAG must be set}"
+    image: "labortrack-backend:${BACKEND_IMAGE_TAG:?BACKEND_IMAGE_TAG must be set}"
 
     build:
       context: .
@@ -53,7 +53,7 @@ services:
 
   # Frontend container
   frontend:
-    image: "labortrack-frontend:${IMAGE_TAG:?IMAGE_TAG must be set}"
+    image: "labortrack-frontend:${FRONTEND_IMAGE_TAG:?FRONTEND_IMAGE_TAG must be set}"
 
     build:
       context: ./labortrack-frontend
