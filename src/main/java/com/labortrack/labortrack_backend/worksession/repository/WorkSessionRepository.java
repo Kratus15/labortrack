@@ -18,6 +18,25 @@ import java.util.Optional;
 @Repository
 public interface WorkSessionRepository extends JpaRepository<WorkSession, Long> {
 
+
+    /**
+     * Find IDs of employees who have an OPEN work session,
+     * limited to employees on the requested page.
+     */
+    @Query("""
+    SELECT ws.employee.id
+    FROM WorkSession ws
+    WHERE ws.company.id = :companyId
+      AND ws.status = :status
+      AND ws.employee.id IN :employeeIds
+    """)
+    List<Long> findEmployeeIdsWithStatusForPage(
+            @Param("companyId") Long companyId,
+            @Param("status") WorkSessionStatus status,
+            @Param("employeeIds") List<Long> employeeIds
+    );
+
+
     /**
      * Find all employee work sessions, order by clock in from newest to oldest
      */

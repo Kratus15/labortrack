@@ -234,25 +234,24 @@ public class DashboardControllerTest {
                                 + UUID.randomUUID()
                                 + "@labortrack.test"
                 );
+
         /*
         send each request through API using admin access token (JWT)
         and expect created status back for each one
          */
-        mockMvc.perform(
-                        post(
-                                "/api/companies/{companyId}/employees",
+        MvcResult alphaResult = mockMvc.perform(
+                        post("/api/companies/{companyId}/employees",
                                 companyId
                         )
-                                .header(
-                                        AUTHORIZATION,
-                                        "Bearer " + adminAccessToken
-                                )
+                                .header(AUTHORIZATION, "Bearer " + adminAccessToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
-                                        employeeOne
-                                ))
+                                                employeeOne
+                                        ))
                 )
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn();
+
         mockMvc.perform(
                         post(
                                 "/api/companies/{companyId}/employees",
@@ -268,7 +267,9 @@ public class DashboardControllerTest {
                                 ))
                 )
                 .andExpect(status().isCreated());
-        mockMvc.perform(
+
+        MvcResult charlieResult =
+                mockMvc.perform(
                         post(
                                 "/api/companies/{companyId}/employees",
                                 companyId
@@ -282,7 +283,120 @@ public class DashboardControllerTest {
                                         employeeThree
                                 ))
                 )
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        // get Alpha's ID and temporary password from the creation response
+        JsonNode alphaJson = objectMapper.readTree(
+                alphaResult.getResponse().getContentAsString()
+        );
+
+        Long alphaId = alphaJson.get("employeeId").asLong();
+        String alphaTemporaryPassword = alphaJson.get("temporaryPassword").asText();
+
+        // get Charlie's ID and temporary password
+        JsonNode charlieJson = objectMapper.readTree(
+                charlieResult.getResponse().getContentAsString()
+        );
+
+        Long charlieId = charlieJson.get("employeeId").asLong();
+        String charlieTemporaryPassword = charlieJson.get("temporaryPassword").asText();
+
+        /*
+         * log in as Alpha using the temporary password.
+         */
+        LoginRequest alphaLoginRequest = new LoginRequest(
+                employeeOne.email(),
+                alphaTemporaryPassword
+        );
+
+        MvcResult alphaLoginResult = mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(alphaLoginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // Extract Alpha's JWT
+        String alphaAccessToken = objectMapper.readTree(
+                alphaLoginResult.getResponse().getContentAsString()
+        ).get("accessToken").asText();
+
+        // Change Alpha's temporary password before clocking in.
+        ChangePasswordRequest alphaPasswordChange =
+                new ChangePasswordRequest(
+                        alphaTemporaryPassword,
+                        "AlphaNewPassword123$"
+                );
+
+        mockMvc.perform(
+                        post("/api/auth/change-password")
+                                .header(AUTHORIZATION, "Bearer " + alphaAccessToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(alphaPasswordChange))
+                )
+                .andExpect(status().isOk());
+
+        // clock in Alpha and verify an OPEN work session is created.
+        mockMvc.perform(
+                        post("/api/employees/{employeeId}/clock-in", alphaId)
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + alphaAccessToken
+                                )
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("OPEN"));
+
+
+        /*
+         * authenticate Charlie using his temporary password
+         */
+        LoginRequest charlieLoginRequest = new LoginRequest(
+                employeeThree.email(),
+                charlieTemporaryPassword
+        );
+
+        MvcResult charlieLoginResult = mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(charlieLoginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String charlieAccessToken = objectMapper.readTree(
+                charlieLoginResult.getResponse().getContentAsString()
+        ).get("accessToken").asText();
+
+        /*
+         * change Charlie's temporary password
+         */
+        ChangePasswordRequest charliePasswordChange =
+                new ChangePasswordRequest(
+                        charlieTemporaryPassword,
+                        "CharlieNewPassword123$"
+                );
+
+        mockMvc.perform(
+                        post("/api/auth/change-password")
+                                .header(AUTHORIZATION, "Bearer " + charlieAccessToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(charliePasswordChange))
+                )
+                .andExpect(status().isOk());
+
+        /*
+         * Clock in Charlie.
+         */
+        mockMvc.perform(
+                        post("/api/employees/{employeeId}/clock-in", charlieId)
+                                .header(AUTHORIZATION, "Bearer " + charlieAccessToken)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("OPEN"));
+
 
         /*
         then send a request to admin/employees using admin's (JWT)
@@ -308,7 +422,9 @@ public class DashboardControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.totalPages").value(2))
                 .andExpect(jsonPath("$.first").value(true))
-                .andExpect(jsonPath("$.last").value(false));
+                .andExpect(jsonPath("$.last").value(false))
+                .andExpect(jsonPath("$.content[0].currentlyClockedIn").value(true))
+                .andExpect(jsonPath("$.content[1].currentlyClockedIn").value(false));
 
         /*
         again send a request to admin/employees using admin's (JWT)
@@ -333,7 +449,8 @@ public class DashboardControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.totalPages").value(2))
                 .andExpect(jsonPath("$.first").value(false))
-                .andExpect(jsonPath("$.last").value(true));
+                .andExpect(jsonPath("$.last").value(true))
+                .andExpect(jsonPath("$.content[0].currentlyClockedIn").value(true));
     }
 
     /**
@@ -733,6 +850,23 @@ public class DashboardControllerTest {
                 .andExpect(jsonPath("$[0].clockInTime").isNotEmpty())
                 .andExpect(jsonPath("$[0].clockOutTime").isEmpty())
                 .andExpect(jsonPath("$[0].workedMinutes").isNumber());
+
+        /*
+         * Verify that the admin employee list correctly identifies
+         * an employee with an OPEN work session.
+         */
+        mockMvc.perform(
+                        get("/api/admin/employees")
+                                .header(
+                                        AUTHORIZATION,
+                                        "Bearer " + adminAccessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].employeeId").value(employeeId))
+                .andExpect(jsonPath("$.content[0].currentlyClockedIn").value(true));
+
     }
 
     /**

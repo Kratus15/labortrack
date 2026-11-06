@@ -261,18 +261,22 @@ public class DashboardService {
                           pageable
                   );
 
-        /*
-        load all currently open workSessions for the company
-        and collect the IDs of the employees who are currently
-        clocked in.
-         */
-        Set<Long> clockedInEmployeeIds = workSessionRepository
-                .findByCompany_IdAndStatusOrderByClockInTimeDesc(
+        // Collect IDs of employees displayed on the current page.
+        List<Long> employeeIds = employeePage.getContent()
+                .stream()
+                .map(Employee::getId)
+                .toList();
+
+        // Retrieve OPEN-session IDs only for employees on this page.
+        Set<Long> clockedInEmployeeIds = employeeIds.isEmpty()
+                ? Set.of()
+                : workSessionRepository
+                .findEmployeeIdsWithStatusForPage(
                         companyId,
-                        WorkSessionStatus.OPEN
+                        WorkSessionStatus.OPEN,
+                        employeeIds
                 )
                 .stream()
-                .map(session -> session.getEmployee().getId())
                 .collect(Collectors.toSet());
 
         /*
